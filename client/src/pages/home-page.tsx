@@ -15,8 +15,13 @@ import { Download, ExternalLink, Image as ImageIcon } from "lucide-react";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
-  const { data: workflows, isLoading } = useQuery<Workflow[]>({
+  const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
+    queryFn: async ({ queryKey }) => {
+      const res = await fetch(queryKey[0] as string);
+      if (!res.ok) throw new Error('Failed to fetch workflows');
+      return res.json();
+    }
   });
 
   if (isLoading) {
@@ -135,7 +140,7 @@ export default function HomePage() {
                     </a>
                   </Button>
                 ) : (
-                  <Button size="sm" asChild className="ml-auto" variant="outline" onClick={() => window.location.href = '/auth'}>
+                  <Button size="sm" asChild className="ml-auto" variant="outline">
                     <Link href="/auth">
                       Login to Download
                     </Link>
