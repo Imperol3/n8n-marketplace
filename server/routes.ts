@@ -62,6 +62,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      console.log('Received files:', Object.keys(files));
+      console.log('Received body:', req.body);
 
       const parsed = insertWorkflowSchema.parse({
         title: req.body.title,
@@ -69,15 +71,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filePath: files?.file ? `/uploads/${files.file[0].originalname}` : null,
         featuredImage: files?.featuredImage ? `/uploads/${files.featuredImage[0].originalname}` : null,
         extraImages: files?.extraImages ? files.extraImages.map(f => `/uploads/${f.originalname}`) : null,
-        metadata: JSON.parse(req.body.metadata || '{}'),
-        createdAt: new Date().toISOString()
+        metadata: {
+          category: req.body.metadata?.category || '',
+          tags: req.body.metadata?.tags || [],
+          previewUrl: req.body.metadata?.previewUrl,
+        },
       });
 
       const workflow = await storage.createWorkflow(parsed);
       res.status(201).json(workflow);
     } catch (error) {
       console.error('Workflow creation error:', error);
-      res.status(400).json({ message: "Invalid workflow data" });
+      res.status(400).json({ message: "Invalid workflow data", error: error instanceof Error ? error.message : String(error) });
     }
   });
 

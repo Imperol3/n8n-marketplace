@@ -33,7 +33,7 @@ const workflowSchema = z.object({
   metadata: z.object({
     category: z.string(),
     tags: z.array(z.string()).default([]),
-    previewUrl: z.string().url().optional(),
+    previewUrl: z.string().url().optional().nullable(),
   }),
 });
 
@@ -97,7 +97,11 @@ export default function AdminPage() {
     const formData = new FormData();
     formData.append("title", data.title);
     formData.append("description", data.description);
-    formData.append("metadata", JSON.stringify(data.metadata));
+    formData.append("metadata", JSON.stringify({
+      category: data.metadata.category,
+      tags: data.metadata.tags,
+      previewUrl: data.metadata.previewUrl || null,
+    }));
 
     // Handle featured image
     const featuredImageInput = document.querySelector<HTMLInputElement>('#featured-image');
@@ -119,7 +123,11 @@ export default function AdminPage() {
       formData.append("file", fileInput.files[0]);
     }
 
-    await createWorkflow.mutateAsync(formData);
+    try {
+      await createWorkflow.mutateAsync(formData);
+    } catch (error) {
+      console.error('Error creating workflow:', error);
+    }
   };
 
   return (
@@ -242,8 +250,8 @@ export default function AdminPage() {
           >
             <div className="flex items-center gap-4">
               {workflow.featuredImage && (
-                <img 
-                  src={workflow.featuredImage} 
+                <img
+                  src={workflow.featuredImage}
                   alt={workflow.title}
                   className="w-16 h-16 object-cover rounded"
                 />
