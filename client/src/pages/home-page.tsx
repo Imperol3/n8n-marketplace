@@ -46,17 +46,25 @@ export default function HomePage() {
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Workflow Marketplace</h1>
           <div className="flex items-center gap-4">
-            {user?.role === "admin" && (
-              <Link href="/admin">
-                <Button variant="outline">Admin Dashboard</Button>
+            {!user ? (
+              <Link href="/auth">
+                <Button>Login / Register</Button>
               </Link>
+            ) : (
+              <>
+                {user.role === "admin" && (
+                  <Link href="/admin">
+                    <Button variant="outline">Admin Dashboard</Button>
+                  </Link>
+                )}
+                <Button 
+                  variant="destructive" 
+                  onClick={() => logoutMutation.mutate()}
+                >
+                  Logout
+                </Button>
+              </>
             )}
-            <Button 
-              variant="destructive" 
-              onClick={() => logoutMutation.mutate()}
-            >
-              Logout
-            </Button>
           </div>
         </div>
       </header>
@@ -119,12 +127,18 @@ export default function HomePage() {
                     </a>
                   </Button>
                 )}
-                {(user?.role === "admin" || user?.role === "user") && (
+                {(user?.role === "admin" || user?.role === "user") ? (
                   <Button size="sm" asChild className="ml-auto">
                     <a href={`/api/workflows/${workflow.id}/download`}>
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </a>
+                  </Button>
+                ) : (
+                  <Button size="sm" asChild className="ml-auto" variant="outline" onClick={() => window.location.href = '/auth'}>
+                    <Link href="/auth">
+                      Login to Download
+                    </Link>
                   </Button>
                 )}
               </CardFooter>

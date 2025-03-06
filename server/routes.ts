@@ -35,108 +35,104 @@ function isUser(req: Request, res: Response, next: Function) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
- setupAuth(app);
+  setupAuth(app);
 
- // Get all workflows
- app.get("/api/workflows", async (_req, res) => {
-   try {
-     const workflows = await storage.getWorkflows();
-     res.json(workflows);
-   } catch (error) {
-     console.error('Error fetching workflows:', error);
-     res.status(500).json({ message: "Failed to fetch workflows" });
-   }
- });
+  // Public route - Get all workflows
+  app.get("/api/workflows", async (_req, res) => {
+    try {
+      const workflows = await storage.getWorkflows();
+      res.json(workflows);
+    } catch (error) {
+      console.error('Error fetching workflows:', error);
+      res.status(500).json({ message: "Failed to fetch workflows" });
+    }
+  });
 
- // Serve uploaded files
- app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  // Serve uploaded files (but not workflow files)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
- // Create workflow (admin only) - Updated to handle multiple files
- app.post("/api/workflows", isAdmin, upload.fields([
-   { name: 'workflow-file', maxCount: 1 },
-   { name: 'featured-image', maxCount: 1 },
-   { name: 'extra-images', maxCount: 5 }
- ]), async (req, res) => {
-   try {
-     console.log('Upload request received');
-     console.log('Request headers:', req.headers);
-     console.log('Content-Type:', req.headers['content-type']);
-     console.log('Files:', req.files);
-     console.log('Body:', req.body);
+  // Protected routes below
 
-     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  // Create workflow (admin only)
+  app.post("/api/workflows", isAdmin, upload.fields([
+    { name: 'workflow-file', maxCount: 1 },
+    { name: 'featured-image', maxCount: 1 },
+    { name: 'extra-images', maxCount: 5 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-     if (!files['workflow-file'] || !files['featured-image']) {
-       return res.status(400).json({ message: "Required files missing" });
-     }
+      if (!files['workflow-file'] || !files['featured-image']) {
+        return res.status(400).json({ message: "Required files missing" });
+      }
 
-     const workflow = await storage.createWorkflow({
-       title: req.body.title,
-       description: req.body.description,
-       filePath: `/uploads/${files['workflow-file'][0].filename}`,
-       featuredImage: `/uploads/${files['featured-image'][0].filename}`,
-       extraImages: files['extra-images']?.map(file => `/uploads/${file.filename}`) || [],
-       videoUrl: req.body.videoUrl || null,
-       metadata: {
-         category: '',
-         tags: [],
-         previewUrl: undefined
-       },
-     });
+      const workflow = await storage.createWorkflow({
+        title: req.body.title,
+        description: req.body.description,
+        filePath: `/uploads/${files['workflow-file'][0].filename}`,
+        featuredImage: `/uploads/${files['featured-image'][0].filename}`,
+        extraImages: files['extra-images']?.map(file => `/uploads/${file.filename}`) || [],
+        videoUrl: req.body.videoUrl || null,
+        metadata: {
+          category: '',
+          tags: [],
+          previewUrl: undefined
+        },
+      });
 
-     res.status(201).json(workflow);
-   } catch (error) {
-     console.error('Workflow creation error:', error);
-     res.status(400).json({
-       message: "Invalid workflow data",
-       error: error instanceof Error ? error.message : String(error)
-     });
-   }
- });
+      res.status(201).json(workflow);
+    } catch (error) {
+      console.error('Workflow creation error:', error);
+      res.status(400).json({
+        message: "Invalid workflow data",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
- // Download workflow file (user only)
- app.get("/api/workflows/:id/download", isUser, async (req, res) => {
-   const workflow = await storage.getWorkflow(parseInt(req.params.id));
-   if (!workflow || !workflow.filePath) {
-     return res.status(404).json({ message: "Workflow file not found" });
-   }
+  // Download workflow file (authenticated users only)
+  app.get("/api/workflows/:id/download", isUser, async (req, res) => {
+    const workflow = await storage.getWorkflow(parseInt(req.params.id));
+    if (!workflow || !workflow.filePath) {
+      return res.status(404).json({ message: "Workflow file not found" });
+    }
 
-   try {
-     const filePath = fileStorage.getAbsolutePath(workflow.filePath);
-     res.download(filePath);
-   } catch (error) {
-     console.error('Error downloading file:', error);
-     res.status(404).json({ message: "Workflow file not found" });
-   }
- });
+    try {
+      const filePath = fileStorage.getAbsolutePath(workflow.filePath);
+      res.download(filePath);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      res.status(404).json({ message: "Workflow file not found" });
+    }
+  });
 
- // Update workflow status (admin only)
- app.patch("/api/workflows/:id/status", isAdmin, async (req, res) => {
-   try {
-     const { status } = req.body;
+  // Update workflow status (admin only)
+  app.patch("/api/workflows/:id/status", isAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
 
-     if (!['draft', 'in_progress', 'needs_edit', 'published'].includes(status)) {
-       return res.status(400).json({ message: "Invalid status" });
-     }
+      if (!['draft', 'in_progress', 'needs_edit', 'published'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
 
-     const workflow = await storage.updateWorkflow(parseInt(req.params.id), {
-       status
-     });
+      const workflow = await storage.updateWorkflow(parseInt(req.params.id), {
+        status
+      });
 
-     if (!workflow) {
-       return res.status(404).json({ message: "Workflow not found" });
-     }
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
 
-     res.json(workflow);
-   } catch (error) {
-     console.error('Error updating workflow status:', error);
-     res.status(400).json({ 
-       message: "Failed to update workflow status",
-       error: error instanceof Error ? error.message : String(error)
-     });
-   }
- });
+      res.json(workflow);
+    } catch (error) {
+      console.error('Error updating workflow status:', error);
+      res.status(400).json({ 
+        message: "Failed to update workflow status",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
- const httpServer = createServer(app);
- return httpServer;
+  const httpServer = createServer(app);
+  return httpServer;
 }
