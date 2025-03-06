@@ -478,6 +478,7 @@ export default function AdminPage() {
   });
 
 
+
   return (
     <div className="container mx-auto p-6">
       <Tabs defaultValue="workflows" className="space-y-6">
@@ -667,8 +668,9 @@ export default function AdminPage() {
             {filteredWorkflows?.map((workflow) => (
               <div
                 key={workflow.id}
-                className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow"
+                className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow h-[600px]"
               >
+                {/* Image Container - Fixed height */}
                 <div className="relative w-full h-[200px] mb-4 rounded-md overflow-hidden bg-muted">
                   {workflow.featuredImage ? (
                     <img
@@ -681,7 +683,7 @@ export default function AdminPage() {
                       <Image className="w-12 h-12 text-muted-foreground" />
                     </div>
                   )}
-                  {/* Add floating action buttons on top */}
+                  {/* Action buttons - Always visible */}
                   <div className="absolute top-2 right-2 flex gap-2">
                     <Button
                       variant="outline"
@@ -709,10 +711,10 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Content */}
+                {/* Content Container - Fixed layout with overflow */}
                 <div className="flex-1 flex flex-col">
-                  <h3 className="font-medium text-lg mb-2">{workflow.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <h3 className="font-medium text-lg mb-2 line-clamp-1">{workflow.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                     {workflow.description}
                   </p>
 
@@ -729,6 +731,19 @@ export default function AdminPage() {
                     )}
                   </div>
 
+                  {/* View Button - New addition */}
+                  <Button
+                    variant="outline"
+                    className="w-full mb-4"
+                    onClick={() => {
+                      // Add view functionality here
+                      window.location.href = `/workflows/${workflow.id}`;
+                    }}
+                  >
+                    View Workflow
+                  </Button>
+
+                  {/* Status and Actions - Fixed to bottom */}
                   <div className="mt-auto pt-4 border-t">
                     <div className="flex items-center justify-between">
                       <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
@@ -995,7 +1010,7 @@ export default function AdminPage() {
           </Table>
         </TabsContent>
 
-        <TabsContent value="tiers" className="space-y-4">
+<TabsContent value="tiers" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Access Tier Management</h2>
             <Dialog open={isTierDialogOpen} onOpenChange={setIsTierDialogOpen}>
