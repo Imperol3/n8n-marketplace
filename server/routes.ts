@@ -7,7 +7,6 @@ import path from "path";
 import express from "express";
 import { fileStorage } from "./storage/fileStorage";
 import fs from 'fs';
-import { randomBytes } from "crypto";
 
 // Update the multer configuration to handle multiple file types
 const upload = multer({
@@ -28,84 +27,26 @@ const upload = multer({
 });
 
 function isAdmin(req: Request, res: Response, next: Function) {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required' });
-  }
-  next();
+ if (req.user?.role !== 'admin') {
+   return res.status(403).json({ message: 'Admin access required' });
+ }
+ next();
 }
 
 function isUser(req: Request, res: Response, next: Function) {
-  if (!['admin', 'user'].includes(req.user?.role || '')) {
-    return res.status(403).json({ message: 'User access required' });
-  }
-  next();
-}
-
-// Add this middleware function
-function validateApiToken(req: Request, res: Response, next: Function) {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: "No API token provided"
-    });
-  }
-
-  // Verify token from storage
-  storage.validateApiToken(token).then(valid => {
-    if (!valid) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid API token"
-      });
-    }
-    next();
-  }).catch(error => {
-    console.error('Token validation error:', error);
-    res.status(500).json({
-      success: false,
-      message: "Error validating token"
-    });
-  });
+ if (!['admin', 'user'].includes(req.user?.role || '')) {
+   return res.status(403).json({ message: 'User access required' });
+ }
+ next();
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
-  // Add token generation endpoint
-  app.post("/api/v1/token", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required"
-      });
-    }
-
-    try {
-      const token = randomBytes(32).toString('hex');
-      await storage.createApiToken({
-        token,
-        userId: req.user!.id,
-        createdAt: new Date()
-      });
-
-      res.json({
-        success: true,
-        message: "API token generated successfully",
-        data: { token }
-      });
-    } catch (error) {
-      console.error('Error generating token:', error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to generate token"
-      });
-    }
-  });
+  // Add these routes after setupAuth(app);
 
   // API endpoint for creating users
-  app.post("/api/v1/users", validateApiToken, async (req, res) => {
+  app.post("/api/v1/users", async (req, res) => {
     try {
       // Validate required fields
       const { username, email, role = "user", tier = "free", password } = req.body;
@@ -482,10 +423,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
-}
-
-// Placeholder for hashPassword function -  replace with your actual implementation
-async function hashPassword(password: string): Promise<string> {
-    //Replace with your actual password hashing logic
-    return password;
 }

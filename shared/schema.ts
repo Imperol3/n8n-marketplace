@@ -1,4 +1,4 @@
-import { pgTable, text, serial, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -9,14 +9,6 @@ export const accessTiers = pgTable("access_tiers", {
   description: text("description"),
   level: serial("level").notNull(), // Higher number means higher access
   active: text("active").notNull().default("true"),
-});
-
-// Add API tokens table
-export const apiTokens = pgTable("api_tokens", {
-  id: serial("id").primaryKey(),
-  token: text("token").notNull().unique(),
-  userId: serial("user_id").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const users = pgTable("users", {
@@ -102,6 +94,3 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
 export type Workflow = typeof workflows.$inferSelect;
-export type ApiToken = typeof apiTokens.$inferSelect;
-export const insertApiTokenSchema = createInsertSchema(apiTokens);
-export type InsertApiToken = z.infer<typeof insertApiTokenSchema>;

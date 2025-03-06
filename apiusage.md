@@ -11,26 +11,7 @@ All API endpoints require authentication. Include your API token in the Authoriz
 Authorization: Bearer <your-token>
 ```
 
-## Endpoints:
-
-### Generate API Token
-Generate an API token for accessing the API endpoints.
-
-**Endpoint:** `POST /token`
-
-#### Request
-Requires session authentication (must be logged in to the application)
-
-#### Response
-```json
-{
-  "success": true,
-  "message": "API token generated successfully",
-  "data": {
-    "token": "your-generated-token"
-  }
-}
-```
+## Endpoints
 
 ### Create User
 Create a new user with optional password.
@@ -96,7 +77,7 @@ curl -X POST https://your-app.replit.app/api/v1/users \
   }'
 ```
 
-### Error Responses:
+### Error Responses
 
 #### Invalid Request (400)
 ```json
@@ -149,5 +130,3 @@ curl -X POST https://your-app.replit.app/api/v1/users \
 
 ## Support
 For additional support or questions, please contact the system administrator or refer to the internal documentation.
-```
-</replit_final_file>
