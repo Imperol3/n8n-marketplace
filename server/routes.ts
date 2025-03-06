@@ -65,17 +65,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Received files:', Object.keys(files));
       console.log('Received body:', req.body);
 
+      let metadata = {};
+      try {
+        metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {
+          category: '',
+          tags: [],
+          previewUrl: null
+        };
+      } catch (e) {
+        console.error('Error parsing metadata:', e);
+        metadata = {
+          category: req.body.metadata?.category || '',
+          tags: req.body.metadata?.tags || [],
+          previewUrl: req.body.metadata?.previewUrl || null
+        };
+      }
+
       const parsed = insertWorkflowSchema.parse({
         title: req.body.title,
         description: req.body.description,
         filePath: files?.file ? `/uploads/${files.file[0].originalname}` : null,
         featuredImage: files?.featuredImage ? `/uploads/${files.featuredImage[0].originalname}` : null,
         extraImages: files?.extraImages ? files.extraImages.map(f => `/uploads/${f.originalname}`) : null,
-        metadata: {
-          category: req.body.metadata?.category || '',
-          tags: req.body.metadata?.tags || [],
-          previewUrl: req.body.metadata?.previewUrl,
-        },
+        metadata: metadata,
       });
 
       const workflow = await storage.createWorkflow(parsed);

@@ -99,9 +99,15 @@ export default function AdminPage() {
     formData.append("description", data.description);
     formData.append("metadata", JSON.stringify({
       category: data.metadata.category,
-      tags: data.metadata.tags,
+      tags: data.metadata.tags || [],
       previewUrl: data.metadata.previewUrl || null,
     }));
+
+    // Handle workflow file
+    const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
+    if (fileInput?.files?.[0]) {
+      formData.append("file", fileInput.files[0]);
+    }
 
     // Handle featured image
     const featuredImageInput = document.querySelector<HTMLInputElement>('#featured-image');
@@ -115,12 +121,6 @@ export default function AdminPage() {
       Array.from(extraImagesInput.files).forEach(file => {
         formData.append("extraImages", file);
       });
-    }
-
-    // Handle workflow file
-    const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
-    if (fileInput?.files?.[0]) {
-      formData.append("file", fileInput.files[0]);
     }
 
     try {
