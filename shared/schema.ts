@@ -17,6 +17,9 @@ export const workflows = pgTable("workflows", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   filePath: text("file_path").notNull(),
+  featuredImage: text("featured_image").notNull(),
+  extraImages: text("extra_images").array(),
+  videoUrl: text("video_url"),
   status: text("status", {
     enum: ["draft", "in_progress", "needs_edit", "published"]
   }).notNull().default("draft"),
@@ -27,7 +30,7 @@ export const workflows = pgTable("workflows", {
   }>().notNull().default({
     category: '',
     tags: [],
-    previewUrl: null
+    previewUrl: undefined
   }),
 });
 
@@ -41,6 +44,9 @@ export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   title: true,
   description: true,
   filePath: true,
+  featuredImage: true,
+  extraImages: true,
+  videoUrl: true,
   status: true,
   metadata: true,
 });

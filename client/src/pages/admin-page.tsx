@@ -36,6 +36,7 @@ import {
 const workflowSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
+  videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
 // Update the status display logic to handle undefined status and improve formatting
@@ -66,6 +67,7 @@ export default function AdminPage() {
     defaultValues: {
       title: "",
       description: "",
+      videoUrl: "",
     },
   });
 
@@ -121,18 +123,39 @@ export default function AdminPage() {
     const formData = new FormData();
     formData.append("title", data.title);
     formData.append("description", data.description);
+    if (data.videoUrl) {
+      formData.append("videoUrl", data.videoUrl);
+    }
 
-    const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
-    if (fileInput?.files?.[0]) {
-      console.log('Uploading workflow file:', fileInput.files[0].name);
-      formData.append("workflow-file", fileInput.files[0]);
-    } else {
+    const workflowFile = document.querySelector<HTMLInputElement>('#workflow-file')?.files?.[0];
+    const featuredImage = document.querySelector<HTMLInputElement>('#featured-image')?.files?.[0];
+    const extraImages = document.querySelector<HTMLInputElement>('#extra-images')?.files;
+
+    if (!workflowFile) {
       toast({
         title: "Error",
         description: "Please select a workflow file",
         variant: "destructive",
       });
       return;
+    }
+
+    if (!featuredImage) {
+      toast({
+        title: "Error",
+        description: "Please select a featured image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    formData.append("workflow-file", workflowFile);
+    formData.append("featured-image", featuredImage);
+
+    if (extraImages) {
+      Array.from(extraImages).forEach(file => {
+        formData.append("extra-images", file);
+      });
     }
 
     try {
@@ -218,6 +241,39 @@ export default function AdminPage() {
                     required
                   />
                 </div>
+                <div>
+                  <FormLabel htmlFor="featured-image">Featured Image (Required)</FormLabel>
+                  <Input
+                    id="featured-image"
+                    type="file"
+                    accept="image/*"
+                    className="mt-1"
+                    required
+                  />
+                </div>
+                <div>
+                  <FormLabel htmlFor="extra-images">Additional Images (Optional)</FormLabel>
+                  <Input
+                    id="extra-images"
+                    type="file"
+                    accept="image/*"
+                    className="mt-1"
+                    multiple
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="videoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Video URL (Optional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="url" placeholder="https://..." />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button
                   type="submit"
                   className="w-full"

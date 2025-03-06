@@ -7,16 +7,17 @@ import path from "path";
 import express from "express";
 import { fileStorage } from "./storage/fileStorage";
 
-// Simplified multer setup with direct disk storage
+// Update the multer configuration to handle multiple file types
 const upload = multer({
- storage: multer.diskStorage({
-   destination: (_req, _file, cb) => {
-     cb(null, path.join(process.cwd(), 'uploads'))
-   },
-   filename: (_req, file, cb) => {
-     cb(null, file.originalname)
-   }
- })
+  storage: multer.diskStorage({
+    destination: (_req, file, cb) => {
+      cb(null, path.join(process.cwd(), 'uploads'))
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+      cb(null, `${uniqueSuffix}-${file.originalname}`);
+    }
+  })
 });
 
 function isAdmin(req: Request, res: Response, next: Function) {
@@ -50,27 +51,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
  // Serve uploaded files
  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
- // Create workflow (admin only) - Simplified to handle just the file upload
- app.post("/api/workflows", isAdmin, upload.single('workflow-file'), async (req, res) => {
+ // Create workflow (admin only) - Updated to handle multiple files
+ app.post("/api/workflows", isAdmin, upload.fields([
+   { name: 'workflow-file', maxCount: 1 },
+   { name: 'featured-image', maxCount: 1 },
+   { name: 'extra-images', maxCount: 5 }
+ ]), async (req, res) => {
    try {
      console.log('Upload request received');
      console.log('Request headers:', req.headers);
      console.log('Content-Type:', req.headers['content-type']);
-     console.log('File:', req.file);
+     console.log('Files:', req.files);
      console.log('Body:', req.body);
 
-     if (!req.file) {
-       return res.status(400).json({ message: "No workflow file provided" });
+     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+     if (!files['workflow-file'] || !files['featured-image']) {
+       return res.status(400).json({ message: "Required files missing" });
      }
 
      const workflow = await storage.createWorkflow({
        title: req.body.title,
        description: req.body.description,
-       filePath: `/uploads/${req.file.filename}`,
+       filePath: `/uploads/${files['workflow-file'][0].filename}`,
+       featuredImage: `/uploads/${files['featured-image'][0].filename}`,
+       extraImages: files['extra-images']?.map(file => `/uploads/${file.filename}`) || [],
+       videoUrl: req.body.videoUrl || null,
        metadata: {
          category: '',
          tags: [],
-         previewUrl: null
+         previewUrl: undefined
        },
      });
 
