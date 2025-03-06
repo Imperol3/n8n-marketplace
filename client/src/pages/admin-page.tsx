@@ -651,7 +651,7 @@ export default function AdminPage() {
             {filteredWorkflows?.map((workflow) => (
               <div
                 key={workflow.id}
-                className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow h-[480px]"
+                className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow"
               >
                 <div className="relative w-full h-[200px] mb-4 rounded-md overflow-hidden bg-muted">
                   {workflow.featuredImage ? (
@@ -665,15 +665,40 @@ export default function AdminPage() {
                       <Image className="w-12 h-12 text-muted-foreground" />
                     </div>
                   )}
+                  {/* Add floating action buttons on top */}
+                  <div className="absolute top-2 right-2 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-white hover:bg-gray-100"
+                      onClick={() => {
+                        setEditWorkflow(workflow);
+                        setIsOpen(true);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="bg-white hover:bg-gray-100"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this workflow?')) {
+                          deleteWorkflow.mutate(workflow.id);
+                        }
+                      }}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex-1 flex flex-col min-h-0">
-                  <div className="mb-4">
-                    <h3 className="font-medium text-lg line-clamp-1 mb-2">{workflow.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-3 min-h-[4.5rem]">
-                      {workflow.description}
-                    </p>
-                  </div>
+                {/* Content */}
+                <div className="flex-1 flex flex-col">
+                  <h3 className="font-medium text-lg mb-2">{workflow.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {workflow.description}
+                  </p>
 
                   <div className="space-y-2 mb-4">
                     {workflow.extraImages && workflow.extraImages.length > 0 && (
@@ -693,48 +718,25 @@ export default function AdminPage() {
                       <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
                         {getStatusDisplay(workflow.status)}
                       </span>
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={workflow.status || 'draft'}
-                          onValueChange={(value) =>
-                            updateWorkflowStatus.mutate({
-                              id: workflow.id,
-                              status: value as WorkflowStatus
-                            })
-                          }
-                        >
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="needs_edit">Needs Edit</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => {
-                            setEditWorkflow(workflow);
-                            setIsOpen(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => {
-                            if (confirm('Are you sure you want to delete this workflow?')) {
-                              deleteWorkflow.mutate(workflow.id);
-                            }
-                          }}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Select
+                        value={workflow.status || 'draft'}
+                        onValueChange={(value) =>
+                          updateWorkflowStatus.mutate({
+                            id: workflow.id,
+                            status: value as WorkflowStatus
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="needs_edit">Needs Edit</SelectItem>
+                          <SelectItem value="published">Published</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
@@ -756,14 +758,23 @@ export default function AdminPage() {
                   Add User
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent>
                 <DialogHeader>
                   <DialogTitle>
-                    Add New User
+                    {editUser ? 'Edit User' : 'Add New User'}
                   </DialogTitle>
                 </DialogHeader>
                 <Form {...userForm}>
-                  <form onSubmit={userForm.handleSubmit((data) => createUser.mutate(data))} className="space-y-4">
+                  <form onSubmit={userForm.handleSubmit((data) => {
+                    if (editUser) {
+                      updateUserAccess.mutate({
+                        userId: editUser.id,
+                        ...data
+                      });
+                    } else {
+                      createUser.mutate(data);
+                    }
+                  })} className="space-y-4">
                     <FormField
                       control={userForm.control}
                       name="username"
@@ -839,9 +850,9 @@ export default function AdminPage() {
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={createUser.isPending}
+                      disabled={createUser.isPending || updateUserAccess.isPending}
                     >
-                      Create User
+                      {editUser ? 'Update User' : 'Create User'}
                     </Button>
                   </form>
                 </Form>
@@ -931,17 +942,35 @@ export default function AdminPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        if (confirm('Are you sure you want to delete this user?')) {
-                          deleteUser.mutate(user.id);
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditUser(user);
+                          userForm.reset({
+                            username: user.username,
+                            email: user.email,
+                            role: user.role,
+                            tier: user.preferences.tier
+                          });
+                          setIsUserDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this user?')) {
+                            deleteUser.mutate(user.id);
+                          }
+                        }}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
