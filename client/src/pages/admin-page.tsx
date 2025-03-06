@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Workflow, WorkflowStatus, WORKFLOW_CATEGORIES } from "@shared/schema";
+import { Workflow, WorkflowStatus, WORKFLOW_CATEGORIES, insertUserSchema } from "@shared/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -51,6 +51,14 @@ const workflowSchema = z.object({
   categories: z.string().min(1, "Please enter at least one category"),
   tags: z.string().optional(),
   requiredTier: z.enum(["free", "tier1", "tier2", "premium"]),
+});
+
+// Add user form schema
+const userSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["admin", "user", "viewer"]),
+  tier: z.enum(["free", "tier1", "tier2", "premium"]),
 });
 
 // Update the status display logic to handle undefined status and improve formatting
@@ -330,6 +338,54 @@ export default function AdminPage() {
   const filteredWorkflows = workflows?.filter(workflow =>
     selectedStatus === 'all' ? true : workflow.status === selectedStatus
   );
+
+  // Add user form
+  const userForm = useForm<z.infer<typeof userSchema>>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      role: "viewer",
+      tier: "free",
+    },
+  });
+
+  // Add user mutation
+  const createUser = useMutation({
+    mutationFn: async (data: z.infer<typeof userSchema>) => {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          preferences: {
+            tier: data.tier,
+            interests: []
+          }
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setIsUserDialogOpen(false);
+      userForm.reset();
+      toast({
+        title: "Success",
+        description: "User created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <div className="container mx-auto p-6">
@@ -614,13 +670,106 @@ export default function AdminPage() {
         <TabsContent value="users" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">User Management</h2>
-            <Button onClick={() => {
-              setEditUser(null);
-              setIsUserDialogOpen(true);
-            }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
+            <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  setEditUser(null);
+                  userForm.reset();
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    Add New User
+                  </DialogTitle>
+                </DialogHeader>
+                <Form {...userForm}>
+                  <form onSubmit={userForm.handleSubmit((data) => createUser.mutate(data))} className="space-y-4">
+                    <FormField
+                      control={userForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={userForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={userForm.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Role</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a role" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="viewer">Viewer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={userForm.control}
+                      name="tier"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tier</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a tier" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="free">Free</SelectItem>
+                              <SelectItem value="tier1">Tier 1</SelectItem>
+                              <SelectItem value="tier2">Tier 2</SelectItem>
+                              <SelectItem value="premium">Premium</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={createUser.isPending}
+                    >
+                      Create User
+                    </Button>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Table>
