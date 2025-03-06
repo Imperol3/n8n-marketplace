@@ -68,13 +68,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate password if not provided
-      const userPassword = password || Math.random().toString(36).slice(-8);
+      const temporaryPassword = password || Math.random().toString(36).slice(-8);
 
-      // Create user using the storage system which handles password hashing
+      // Create user using the storage system
       const user = await storage.createUser({
         username,
         email,
-        password: userPassword, // Storage system will hash this
+        password: temporaryPassword,
         role,
         preferences: {
           tier,
@@ -82,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Return response with or without raw password based on whether it was auto-generated
+      // Return response with or without temporary password based on whether it was auto-generated
       res.status(201).json({
         success: true,
         message: "User created successfully",
@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             role: user.role,
             preferences: user.preferences
           },
-          ...(password ? {} : { temporaryPassword: userPassword })
+          ...(password ? {} : { temporaryPassword })
         }
       });
     } catch (error) {

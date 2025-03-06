@@ -57,9 +57,9 @@ const workflowSchema = z.object({
 const userSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
   role: z.enum(["admin", "user", "viewer"]),
   tier: z.string().min(1, "Please select a tier"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
 });
 
 const getStatusDisplay = (status: WorkflowStatus | undefined) => {
@@ -875,6 +875,7 @@ export default function AdminPage() {
                             <Input
                               type="password"
                               {...field}
+                              value={field.value || ''}
                               placeholder="Leave empty for auto-generated password"
                             />
                           </FormControl>
@@ -1003,9 +1004,8 @@ export default function AdminPage() {
                   </TableCell>
                   <TableCell className="relative">
                     <div className="flex items-center space-x-2">
-                      <span className={!showPassword[user.id] ? "filter blur-sm" : ""}>
-                        {user.password?.split('.')[1] || 'N/A'}
-                      </span>
+                      <span className={!showPassword[user.id] ? "filter blur-sm" : ""}>                      {user.password?.split('.')[1] || 'N/A'}
+                    </span>
                       <Button
                         variant="ghost"
                         size="sm"
