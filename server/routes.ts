@@ -76,13 +76,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update the workflow creation route to handle metadata
   app.post("/api/workflows", isAdmin, upload.fields([
     { name: 'workflow-file', maxCount: 1 },
-    { name: 'featured-image', maxCount: 1 },
+    { name: 'featuredImage', maxCount: 1 },
     { name: 'extra-images', maxCount: 5 }
   ]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      if (!files['workflow-file'] || !files['featured-image']) {
+      if (!files['workflow-file'] || !files['featuredImage']) {
         return res.status(400).json({ message: "Required files missing" });
       }
 
@@ -97,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: req.body.title,
         description: req.body.description,
         filePath: `/uploads/${files['workflow-file'][0].filename}`,
-        featuredImage: `/uploads/${files['featured-image'][0].filename}`,
+        featuredImage: `/uploads/${files['featuredImage'][0].filename}`,
         extraImages: files['extra-images']?.map(file => `/uploads/${file.filename}`) || [],
         videoUrl: req.body.videoUrl || null,
         metadata: {
@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update workflow (admin only)
   app.patch("/api/workflows/:id", isAdmin, upload.fields([
     { name: 'workflow-file', maxCount: 1 },
-    { name: 'featured-image', maxCount: 1 },
+    { name: 'featuredImage', maxCount: 1 },
     { name: 'extra-images', maxCount: 5 }
   ]), async (req, res) => {
     try {
@@ -149,8 +149,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (files['workflow-file']) {
         updateData.filePath = `/uploads/${files['workflow-file'][0].filename}`;
       }
-      if (files['featured-image']) {
-        updateData.featuredImage = `/uploads/${files['featured-image'][0].filename}`;
+      if (files['featuredImage']) {
+        updateData.featuredImage = `/uploads/${files['featuredImage'][0].filename}`;
       }
       if (files['extra-images']) {
         updateData.extraImages = files['extra-images'].map(file => `/uploads/${file.filename}`);

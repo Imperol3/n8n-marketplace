@@ -277,7 +277,7 @@ export default function AdminPage() {
     }));
 
     const workflowFile = document.querySelector<HTMLInputElement>('#workflow-file')?.files?.[0];
-    const featuredImage = document.querySelector<HTMLInputElement>('#featured-image')?.files?.[0];
+    const featuredImage = document.querySelector<HTMLInputElement>('#featuredImage')?.files?.[0];
     const extraImages = document.querySelector<HTMLInputElement>('#extra-images')?.files;
 
     if (editWorkflow) {
@@ -579,6 +579,7 @@ export default function AdminPage() {
                       </FormLabel>
                       <Input
                         id="workflow-file"
+                        name="workflow-file"
                         type="file"
                         accept=".json"
                         className="mt-1"
@@ -586,11 +587,12 @@ export default function AdminPage() {
                       />
                     </div>
                     <div>
-                      <FormLabel htmlFor="featured-image">
+                      <FormLabel htmlFor="featuredImage">
                         {editWorkflow ? 'Replace Featured Image (Optional)' : 'Featured Image (Required)'}
                       </FormLabel>
                       <Input
-                        id="featured-image"
+                        id="featuredImage"
+                        name="featuredImage"
                         type="file"
                         accept="image/*"
                         className="mt-1"
@@ -601,6 +603,7 @@ export default function AdminPage() {
                       <FormLabel htmlFor="extra-images">Additional Images (Optional)</FormLabel>
                       <Input
                         id="extra-images"
+                        name="extra-images"
                         type="file"
                         accept="image/*"
                         className="mt-1"
