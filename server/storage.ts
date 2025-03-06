@@ -1,9 +1,12 @@
 import { User, InsertUser, Workflow, InsertWorkflow } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import { users, workflows } from "@shared/schema";
 import session from "express-session";
-import createMemoryStore from "memorystore";
-import { hashPassword } from "./auth";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -20,83 +23,61 @@ export interface IStorage {
   sessionStore: session.SessionStore;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private workflows: Map<number, Workflow>;
+export class DatabaseStorage implements IStorage {
   sessionStore: session.SessionStore;
-  private currentUserId: number;
-  private currentWorkflowId: number;
 
   constructor() {
-    this.users = new Map();
-    this.workflows = new Map();
-    this.currentUserId = 1;
-    this.currentWorkflowId = 1;
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
-    });
-
-    // Create default admin user
-    this.initializeAdmin();
-  }
-
-  private async initializeAdmin() {
-    const hashedPassword = await hashPassword("admin123");
-    this.createUser({
-      username: "admin",
-      password: hashedPassword,
-      role: "admin"
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   async getWorkflows(): Promise<Workflow[]> {
-    return Array.from(this.workflows.values());
+    return await db.select().from(workflows);
   }
 
   async getWorkflow(id: number): Promise<Workflow | undefined> {
-    return this.workflows.get(id);
+    const [workflow] = await db.select().from(workflows).where(eq(workflows.id, id));
+    return workflow;
   }
 
   async createWorkflow(insertWorkflow: InsertWorkflow): Promise<Workflow> {
-    const id = this.currentWorkflowId++;
-    const workflow: Workflow = { 
-      ...insertWorkflow, 
-      id,
-      createdAt: new Date().toISOString()
-    };
-    this.workflows.set(id, workflow);
+    const [workflow] = await db.insert(workflows).values(insertWorkflow).returning();
     return workflow;
   }
 
   async updateWorkflow(id: number, update: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
-    const workflow = this.workflows.get(id);
-    if (!workflow) return undefined;
-
-    const updated = { ...workflow, ...update };
-    this.workflows.set(id, updated);
-    return updated;
+    const [workflow] = await db
+      .update(workflows)
+      .set(update)
+      .where(eq(workflows.id, id))
+      .returning();
+    return workflow;
   }
 
   async deleteWorkflow(id: number): Promise<boolean> {
-    return this.workflows.delete(id);
+    const [workflow] = await db
+      .delete(workflows)
+      .where(eq(workflows.id, id))
+      .returning();
+    return !!workflow;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
