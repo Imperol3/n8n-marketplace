@@ -44,7 +44,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const [user] = await db.insert(users).values({
+      ...insertUser,
+      preferences: {
+        interests: [],
+        tier: "free"
+      }
+    }).returning();
     return user;
   }
 
@@ -58,28 +64,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkflow(insertWorkflow: InsertWorkflow): Promise<Workflow> {
-    const [workflow] = await db.insert(workflows).values({
-      ...insertWorkflow,
-      metadata: {
-        category: '',
-        tags: [],
-        previewUrl: undefined
-      }
-    }).returning();
+    const [workflow] = await db.insert(workflows).values(insertWorkflow).returning();
     return workflow;
   }
 
   async updateWorkflow(id: number, update: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
     const [workflow] = await db
       .update(workflows)
-      .set({
-        ...update,
-        metadata: {
-          category: '',
-          tags: [],
-          previewUrl: undefined
-        }
-      })
+      .set(update)
       .where(eq(workflows.id, id))
       .returning();
     return workflow;
