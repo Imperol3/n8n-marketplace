@@ -43,6 +43,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/workflows", isAdmin, upload.single('workflow-file'), async (req, res) => {
     try {
       console.log('Upload request received');
+      console.log('Request headers:', req.headers);
+      console.log('Content-Type:', req.headers['content-type']);
       console.log('File:', req.file);
       console.log('Body:', req.body);
 

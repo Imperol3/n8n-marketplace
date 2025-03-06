@@ -78,7 +78,9 @@ export default function AdminPage() {
     const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
     if (fileInput?.files?.[0]) {
       console.log('Uploading workflow file:', fileInput.files[0].name);
-      formData.append("workflow-file", fileInput.files[0]);
+      // Make sure we're using the same field name as multer expects
+      const file = fileInput.files[0];
+      formData.append("workflow-file", file, file.name);
     } else {
       toast({
         title: "Error",
