@@ -36,6 +36,17 @@ function isUser(req: Request, res: Response, next: Function) {
 export async function registerRoutes(app: Express): Promise<Server> {
  setupAuth(app);
 
+ // Get all workflows
+ app.get("/api/workflows", async (_req, res) => {
+   try {
+     const workflows = await storage.getWorkflows();
+     res.json(workflows);
+   } catch (error) {
+     console.error('Error fetching workflows:', error);
+     res.status(500).json({ message: "Failed to fetch workflows" });
+   }
+ });
+
  // Serve uploaded files
  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
