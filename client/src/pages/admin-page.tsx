@@ -11,9 +11,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Workflow } from "@shared/schema";
+import { queryClient } from "@/lib/queryClient";
+import { Workflow, WorkflowStatus } from "@shared/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -31,9 +38,18 @@ const workflowSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
 });
 
+const statusColors = {
+  draft: "bg-gray-200 text-gray-700",
+  in_progress: "bg-blue-200 text-blue-700",
+  needs_edit: "bg-yellow-200 text-yellow-700",
+  published: "bg-green-200 text-green-700",
+};
+
 export default function AdminPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<WorkflowStatus | 'all'>('all');
+
   const { data: workflows } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
   });
@@ -51,7 +67,6 @@ export default function AdminPage() {
       const res = await fetch('/api/workflows', {
         method: 'POST',
         body: formData,
-        // Don't set Content-Type, let the browser set it with the boundary
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -74,12 +89,32 @@ export default function AdminPage() {
     },
   });
 
+  const updateWorkflowStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: WorkflowStatus }) => {
+      const res = await fetch(`/api/workflows/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
+      toast({
+        title: "Success",
+        description: "Workflow status updated successfully",
+      });
+    },
+  });
+
   const onSubmit = async (data: z.infer<typeof workflowSchema>) => {
     const formData = new FormData();
     formData.append("title", data.title);
     formData.append("description", data.description);
 
-    // Handle workflow file
     const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
     if (fileInput?.files?.[0]) {
       console.log('Uploading workflow file:', fileInput.files[0].name);
@@ -100,10 +135,33 @@ export default function AdminPage() {
     }
   };
 
+  const filteredWorkflows = workflows?.filter(workflow => 
+    selectedStatus === 'all' ? true : workflow.status === selectedStatus
+  );
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Workflow Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Workflow Management</h1>
+          <div className="mt-2">
+            <Select 
+              value={selectedStatus} 
+              onValueChange={(value) => setSelectedStatus(value as WorkflowStatus | 'all')}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="needs_edit">Needs Edit</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -167,7 +225,7 @@ export default function AdminPage() {
       </div>
 
       <div className="grid gap-4">
-        {workflows?.map((workflow) => (
+        {filteredWorkflows?.map((workflow) => (
           <div
             key={workflow.id}
             className="flex items-center justify-between p-4 border rounded-lg"
@@ -177,6 +235,30 @@ export default function AdminPage() {
               <p className="text-sm text-muted-foreground">
                 {workflow.description}
               </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status]}`}>
+                {workflow.status.replace('_', ' ').toUpperCase()}
+              </span>
+              <Select
+                value={workflow.status}
+                onValueChange={(value) => 
+                  updateWorkflowStatus.mutate({ 
+                    id: workflow.id, 
+                    status: value as WorkflowStatus 
+                  })
+                }
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="needs_edit">Needs Edit</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         ))}

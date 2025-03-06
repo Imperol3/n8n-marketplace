@@ -9,11 +9,17 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["admin", "user", "viewer"] }).notNull().default("viewer"),
 });
 
+// Define workflow status as a type
+export type WorkflowStatus = "draft" | "in_progress" | "needs_edit" | "published";
+
 export const workflows = pgTable("workflows", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   filePath: text("file_path").notNull(),
+  status: text("status", {
+    enum: ["draft", "in_progress", "needs_edit", "published"]
+  }).notNull().default("draft"),
   metadata: jsonb("metadata").$type<{
     category: string;
     tags: string[];
@@ -35,6 +41,7 @@ export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   title: true,
   description: true,
   filePath: true,
+  status: true,
   metadata: true,
 });
 
