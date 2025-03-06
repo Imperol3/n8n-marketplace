@@ -1,5 +1,4 @@
-import React from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tier } from "@shared/schema";
 
 const workflowSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -50,10 +50,9 @@ const workflowSchema = z.object({
   videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   categories: z.string().min(1, "Please enter at least one category"),
   tags: z.string().optional(),
-  requiredTier: z.enum(["free", "tier1", "tier2", "premium"]),
+  requiredTier: z.string(), // Changed to string to handle dynamic tier names
 });
 
-// Update user form schema
 const userSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
@@ -61,7 +60,6 @@ const userSchema = z.object({
   tier: z.enum(["free", "tier1", "tier2", "premium"]),
 });
 
-// Update the status display logic to handle undefined status and improve formatting
 const getStatusDisplay = (status: WorkflowStatus | undefined) => {
   return status ? status.replace(/_/g, ' ').split(' ').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
@@ -82,13 +80,12 @@ export default function AdminPage() {
   const [selectedStatus, setSelectedStatus] = useState<WorkflowStatus | 'all'>('all');
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
+  const [activeTab, setActiveTab] = useState("workflows");
 
-  // Add query for users
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
 
-  // Add user management mutations
   const deleteUser = useMutation({
     mutationFn: async (userId: number) => {
       const res = await fetch(`/api/users/${userId}`, {
@@ -144,7 +141,6 @@ export default function AdminPage() {
     },
   });
 
-
   const { data: workflows } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
   });
@@ -161,7 +157,6 @@ export default function AdminPage() {
     },
   });
 
-  // Reset form when editWorkflow changes
   React.useEffect(() => {
     if (editWorkflow) {
       form.reset({
@@ -268,7 +263,6 @@ export default function AdminPage() {
       formData.append("videoUrl", data.videoUrl);
     }
 
-    // Handle categories and tags
     formData.append("metadata", JSON.stringify({
       categories: data.categories.split(',').map(c => c.trim()),
       tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
@@ -279,7 +273,6 @@ export default function AdminPage() {
     const featuredImage = document.querySelector<HTMLInputElement>('#featured-image')?.files?.[0];
     const extraImages = document.querySelector<HTMLInputElement>('#extra-images')?.files;
 
-    // If editing, only include files if they're changed
     if (editWorkflow) {
       if (workflowFile) {
         formData.append("workflow-file", workflowFile);
@@ -299,7 +292,6 @@ export default function AdminPage() {
         console.error('Error updating workflow:', error);
       }
     } else {
-      // For new workflows, require the workflow file and featured image
       if (!workflowFile) {
         toast({
           title: "Error",
@@ -339,7 +331,6 @@ export default function AdminPage() {
     selectedStatus === 'all' ? true : workflow.status === selectedStatus
   );
 
-  // Add user form
   const userForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -350,10 +341,8 @@ export default function AdminPage() {
     },
   });
 
-  // Update createUser mutation
   const createUser = useMutation({
     mutationFn: async (data: z.infer<typeof userSchema>) => {
-      // Generate a temporary password
       const tempPassword = Math.random().toString(36).slice(-8);
 
       const res = await fetch('/api/register', {
@@ -372,11 +361,10 @@ export default function AdminPage() {
       });
       if (!res.ok) throw new Error(await res.text());
 
-      // Show the temporary password in a toast message
       toast({
         title: "User Created Successfully",
         description: `Temporary password: ${tempPassword}\nPlease share this with the user securely.`,
-        duration: 10000, // Show for 10 seconds
+        duration: 10000,
       });
 
       return res.json();
@@ -395,12 +383,73 @@ export default function AdminPage() {
     },
   });
 
+  const { data: tiers = [] } = useQuery<Tier[]>({
+    queryKey: ["/api/tiers"],
+  });
+
+  const createTier = useMutation({
+    mutationFn: async (data: { name: string; description: string }) => {
+      const res = await fetch('/api/tiers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tiers"] });
+      toast({
+        title: "Success",
+        description: "Tier created successfully",
+      });
+    },
+  });
+
+  const updateTier = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Tier> }) => {
+      const res = await fetch(`/api/tiers/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tiers"] });
+      toast({
+        title: "Success",
+        description: "Tier updated successfully",
+      });
+    },
+  });
+
+  const deleteTier = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/tiers/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tiers"] });
+      toast({
+        title: "Success",
+        description: "Tier deleted successfully",
+      });
+    },
+  });
+
+
   return (
     <div className="container mx-auto p-6">
       <Tabs defaultValue="workflows" className="space-y-6">
         <TabsList>
           <TabsTrigger value="workflows">Workflows</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="tiers">Access Tiers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="workflows">
@@ -505,10 +554,11 @@ export default function AdminPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="free">Free</SelectItem>
-                              <SelectItem value="tier1">Tier 1</SelectItem>
-                              <SelectItem value="tier2">Tier 2</SelectItem>
-                              <SelectItem value="premium">Premium</SelectItem>
+                              {tiers.map((tier) => (
+                                <SelectItem key={tier.id} value={tier.name}>
+                                  {tier.name}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -581,7 +631,6 @@ export default function AdminPage() {
                 key={workflow.id}
                 className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow h-[480px]"
               >
-                {/* Featured Image Container - Fixed height */}
                 <div className="relative w-full h-[200px] mb-4 rounded-md overflow-hidden bg-muted">
                   {workflow.featuredImage ? (
                     <img
@@ -596,7 +645,6 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                {/* Content Container - Fixed layout */}
                 <div className="flex-1 flex flex-col min-h-0">
                   <div className="mb-4">
                     <h3 className="font-medium text-lg line-clamp-1 mb-2">{workflow.title}</h3>
@@ -605,7 +653,6 @@ export default function AdminPage() {
                     </p>
                   </div>
 
-                  {/* Additional Info - Fixed height section */}
                   <div className="space-y-2 mb-4">
                     {workflow.extraImages && workflow.extraImages.length > 0 && (
                       <div className="text-sm text-muted-foreground">
@@ -619,7 +666,6 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  {/* Status and Actions - Fixed to bottom */}
                   <div className="mt-auto pt-4 border-t">
                     <div className="flex items-center justify-between">
                       <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
@@ -843,6 +889,98 @@ export default function AdminPage() {
                       onClick={() => {
                         if (confirm('Are you sure you want to delete this user?')) {
                           deleteUser.mutate(user.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TabsContent>
+
+        <TabsContent value="tiers" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Access Tier Management</h2>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Tier
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Access Tier</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  createTier.mutate({
+                    name: formData.get('name') as string,
+                    description: formData.get('description') as string,
+                  });
+                }}>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="name">Name</Label>
+                      <Input id="name" name="name" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea id="description" name="description" required />
+                    </div>
+                    <Button type="submit" className="w-full">Create Tier</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Level</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tiers.map((tier) => (
+                <TableRow key={tier.id}>
+                  <TableCell>{tier.name}</TableCell>
+                  <TableCell>{tier.description}</TableCell>
+                  <TableCell>{tier.level}</TableCell>
+                  <TableCell>
+                    <Select
+                      defaultValue={tier.active}
+                      onValueChange={(active) =>
+                        updateTier.mutate({
+                          id: tier.id,
+                          data: { active }
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Active</SelectItem>
+                        <SelectItem value="false">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this tier?')) {
+                          deleteTier.mutate(tier.id);
                         }
                       }}
                     >

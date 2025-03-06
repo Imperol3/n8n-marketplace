@@ -306,6 +306,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add to your existing routes:
+
+  // Get all tiers
+  app.get("/api/tiers", isAdmin, async (_req, res) => {
+    try {
+      const tiers = await storage.getTiers();
+      res.json(tiers);
+    } catch (error) {
+      console.error('Error fetching tiers:', error);
+      res.status(500).json({ message: "Failed to fetch tiers" });
+    }
+  });
+
+  // Create new tier
+  app.post("/api/tiers", isAdmin, async (req, res) => {
+    try {
+      const tier = await storage.createTier(req.body);
+      res.status(201).json(tier);
+    } catch (error) {
+      console.error('Error creating tier:', error);
+      res.status(400).json({
+        message: "Failed to create tier",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Update tier
+  app.patch("/api/tiers/:id", isAdmin, async (req, res) => {
+    try {
+      const tier = await storage.updateTier(parseInt(req.params.id), req.body);
+      if (!tier) {
+        return res.status(404).json({ message: "Tier not found" });
+      }
+      res.json(tier);
+    } catch (error) {
+      console.error('Error updating tier:', error);
+      res.status(400).json({
+        message: "Failed to update tier",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Delete tier
+  app.delete("/api/tiers/:id", isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteTier(parseInt(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Tier not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting tier:', error);
+      res.status(400).json({
+        message: "Failed to delete tier",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

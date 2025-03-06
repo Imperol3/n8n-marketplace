@@ -2,6 +2,15 @@ import { pgTable, text, serial, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Define access tiers table
+export const accessTiers = pgTable("access_tiers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  level: serial("level").notNull(), // Higher number means higher access
+  active: text("active").notNull().default("true"),
+});
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -10,7 +19,7 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["admin", "user", "viewer"] }).notNull().default("viewer"),
   preferences: jsonb("preferences").$type<{
     interests: string[];
-    tier: "free" | "tier1" | "tier2" | "premium";
+    tier: string;
   }>().notNull().default({
     interests: [],
     tier: "free"
@@ -49,7 +58,7 @@ export const workflows = pgTable("workflows", {
     categories: string[];
     tags: string[];
     previewUrl?: string;
-    requiredTier: "free" | "tier1" | "tier2" | "premium";
+    requiredTier: string;
   }>().notNull().default({
     categories: [],
     tags: [],
@@ -57,6 +66,8 @@ export const workflows = pgTable("workflows", {
   }),
 });
 
+// Add insert schemas
+export const insertTierSchema = createInsertSchema(accessTiers);
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -76,6 +87,9 @@ export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   metadata: true,
 });
 
+// Export types
+export type InsertTier = z.infer<typeof insertTierSchema>;
+export type Tier = typeof accessTiers.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;

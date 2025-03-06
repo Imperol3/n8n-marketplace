@@ -1,7 +1,7 @@
-import { User, InsertUser, Workflow, InsertWorkflow } from "@shared/schema";
+import { User, InsertUser, Workflow, InsertWorkflow, Tier, InsertTier } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { users, workflows } from "@shared/schema";
+import { users, workflows, accessTiers } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -12,9 +12,16 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  getUsers(): Promise<User[]>; // Add this line
+  getUsers(): Promise<User[]>;
   updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
+
+  // Tier operations
+  getTiers(): Promise<Tier[]>;
+  getTier(id: number): Promise<Tier | undefined>;
+  createTier(tier: InsertTier): Promise<Tier>;
+  updateTier(id: number, tier: Partial<InsertTier>): Promise<Tier | undefined>;
+  deleteTier(id: number): Promise<boolean>;
 
   // Workflow operations
   getWorkflows(): Promise<Workflow[]>;
@@ -36,6 +43,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -47,22 +55,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values({
-      ...insertUser,
-      preferences: {
-        interests: [],
-        tier: "free"
-      }
-    }).returning();
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
-  // Add getUsers implementation
   async getUsers(): Promise<User[]> {
     return await db.select().from(users);
   }
 
-  // Add updateUser implementation
   async updateUser(id: number, update: Partial<User>): Promise<User | undefined> {
     const [user] = await db
       .update(users)
@@ -72,7 +72,6 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  // Add deleteUser implementation
   async deleteUser(id: number): Promise<boolean> {
     const [user] = await db
       .delete(users)
@@ -81,6 +80,39 @@ export class DatabaseStorage implements IStorage {
     return !!user;
   }
 
+  // Tier operations
+  async getTiers(): Promise<Tier[]> {
+    return await db.select().from(accessTiers).orderBy(accessTiers.level);
+  }
+
+  async getTier(id: number): Promise<Tier | undefined> {
+    const [tier] = await db.select().from(accessTiers).where(eq(accessTiers.id, id));
+    return tier;
+  }
+
+  async createTier(insertTier: InsertTier): Promise<Tier> {
+    const [tier] = await db.insert(accessTiers).values(insertTier).returning();
+    return tier;
+  }
+
+  async updateTier(id: number, update: Partial<InsertTier>): Promise<Tier | undefined> {
+    const [tier] = await db
+      .update(accessTiers)
+      .set(update)
+      .where(eq(accessTiers.id, id))
+      .returning();
+    return tier;
+  }
+
+  async deleteTier(id: number): Promise<boolean> {
+    const [tier] = await db
+      .delete(accessTiers)
+      .where(eq(accessTiers.id, id))
+      .returning();
+    return !!tier;
+  }
+
+  // Workflow operations
   async getWorkflows(): Promise<Workflow[]> {
     return await db.select().from(workflows);
   }
