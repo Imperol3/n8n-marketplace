@@ -18,7 +18,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const authSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -31,7 +30,6 @@ export default function AuthPage() {
     resolver: zodResolver(authSchema),
     defaultValues: {
       username: "",
-      email: "",
       password: "",
     },
   });
@@ -43,10 +41,7 @@ export default function AuthPage() {
 
   const onSubmit = async (data: z.infer<typeof authSchema>) => {
     if (activeTab === "login") {
-      await loginMutation.mutateAsync({
-        username: data.username,
-        password: data.password
-      });
+      await loginMutation.mutateAsync(data);
     } else {
       await registerMutation.mutateAsync(data);
     }
@@ -118,19 +113,6 @@ export default function AuthPage() {
                           <FormLabel>Username</FormLabel>
                           <FormControl>
                             <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
