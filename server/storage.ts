@@ -1,12 +1,18 @@
 import { User, InsertUser, Workflow, InsertWorkflow, Tier, InsertTier } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { users, workflows, accessTiers } from "@shared/schema";
+import { users, workflows, accessTiers, apiTokens } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
 
 const PostgresSessionStore = connectPg(session);
+
+interface ApiToken {
+  token: string;
+  userId: number;
+  createdAt: Date;
+}
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -30,6 +36,10 @@ export interface IStorage {
   updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined>;
   deleteWorkflow(id: number): Promise<boolean>;
 
+  // API Token operations
+  createApiToken(token: ApiToken): Promise<void>;
+  validateApiToken(token: string): Promise<boolean>;
+
   sessionStore: session.SessionStore;
 }
 
@@ -43,7 +53,6 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -80,7 +89,6 @@ export class DatabaseStorage implements IStorage {
     return !!user;
   }
 
-  // Tier operations
   async getTiers(): Promise<Tier[]> {
     return await db.select().from(accessTiers).orderBy(accessTiers.level);
   }
@@ -112,7 +120,6 @@ export class DatabaseStorage implements IStorage {
     return !!tier;
   }
 
-  // Workflow operations
   async getWorkflows(): Promise<Workflow[]> {
     return await db.select().from(workflows);
   }
@@ -142,6 +149,18 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workflows.id, id))
       .returning();
     return !!workflow;
+  }
+
+  async createApiToken(token: ApiToken): Promise<void> {
+    await db.insert(apiTokens).values(token);
+  }
+
+  async validateApiToken(token: string): Promise<boolean> {
+    const [foundToken] = await db
+      .select()
+      .from(apiTokens)
+      .where(eq(apiTokens.token, token));
+    return !!foundToken;
   }
 }
 
