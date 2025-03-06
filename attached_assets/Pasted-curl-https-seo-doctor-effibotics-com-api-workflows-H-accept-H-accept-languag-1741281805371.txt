@@ -1,0 +1,18 @@
+curl 'https://seo-doctor.effibotics.com/api/workflows' \
+  -H 'accept: */*' \
+  -H 'accept-language: en-US,en;q=0.9' \
+  -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundaryS6jdo96QPCfO2liW' \
+  -b 'rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX1%2FHy%2F3Nj3gOtI2NA5j23XOoJFMGUdiqEdI%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX19h8M5zLyIC4o5omFPnuP9RmXDC9p7qXtw%3D; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2BWxUTy0ijlQjCNv8xzsXCIcdU4QYfj9Nsb0rGAwtCiD4m%2FgNsXyjB0g9vW0LHRJiLxgT6lRrmOYw%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2BVLTNWZ0lQTqlqqMkjeCeACUzQMHh%2Fg8CUL3d2htd3j9acG2zFjtenTxiqtCfOfP0m%2F9j49pgoDarelZ4muHO9QnmOMB0kq1eD%2F9iP2hxmukowKH6IHX0kXwY8m9a6OJdn3ygwoXFK3yc%2BAFFqwK0q030CZz8MC%2BM%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX1%2Br3LkStK74kCIVdDV3nSopJ%2BRidrE%2Bso4VpGkdcLWjgbKukq2JQVQ%2BQSZviELt2J4yndUAheucYB%2BUuDiP%2F%2FeTDbJ3E2uPXyn4vXblaoDKXZFvtxQ0S%2BQglDhvK0V3qJUVVB37CEvvFw%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%2278faf0163a0089363c609ec052a23562449936b1fc81be6f4370652c45d82062%238f3b4b0e-b2a9-45fa-8f4d-fc3fc4d81498%22%2C%22%24sesid%22%3A%5Bnull%2Cnull%2Cnull%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fdev.effibotics.com%2Fsignout%22%7D%7D; rl_session=RudderEncrypt%3AU2FsdGVkX18tY4%2FdQjO22yyDFOTmbCPaZiTUJKlsPdBcP%2BP%2Bl0MXvPyd27JFWcb0T1mq%2BwPxmAw4m%2FAqmxhMJUaB36h7nbL3pbjqLsqICo1pWFBeEIYqrmVuYznK2Hw8BIwEhGgv%2FserKWNA0FU50w%3D%3D; connect.sid=s%3A0wPy-d8gTYNHBpTOL9cfSeKeGH3Sy9c7.pkymzq22bgHHW8FbE0t1SlRPTKCJDXAg6BwoFiYRteM' \
+  -H 'dnt: 1' \
+  -H 'origin: https://seo-doctor.effibotics.com' \
+  -H 'priority: u=1, i' \
+  -H 'referer: https://seo-doctor.effibotics.com/admin' \
+  -H 'sec-ch-ua: "Chromium";v="133", "Not(A:Brand";v="99"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36' \
+  --data-raw $'------WebKitFormBoundaryS6jdo96QPCfO2liW\r\nContent-Disposition: form-data; name="title"\r\n\r\nTest workflow 3\r\n------WebKitFormBoundaryS6jdo96QPCfO2liW\r\nContent-Disposition: form-data; name="description"\r\n\r\nWhat is an acceptable unsubscribe rate? \r\n\r\nAs is the norm, 0.2-0.5% is the acceptable unsubscribe rate. Anything more than 0.5% means you need to fix your unsubscribe emails. \r\n\r\nCertain non-negotiable details go into making an unsubscribe page that will be covered in the examples. \r\n\r\nEnjoy reading\u0021\r\n------WebKitFormBoundaryS6jdo96QPCfO2liW\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n{"categories":["Sales","AI Agents"],"tags":[],"requiredTier":"free"}\r\n------WebKitFormBoundaryS6jdo96QPCfO2liW\r\nContent-Disposition: form-data; name="workflow-file"; filename="Upload_to_pinecone.json"\r\nContent-Type: application/json\r\n\r\n\r\n------WebKitFormBoundaryS6jdo96QPCfO2liW\r\nContent-Disposition: form-data; name="featured-image"; filename="example.png"\r\nContent-Type: image/png\r\n\r\n\r\n------WebKitFormBoundaryS6jdo96QPCfO2liW--\r\n' \
+  --insecure
