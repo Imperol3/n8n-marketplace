@@ -21,29 +21,20 @@ const upload = multer({
 });
 
 function isAdmin(req: Request, res: Response, next: Function) {
-  console.log('Admin check - user:', req.user); // Add logging
-  if (!req.user || req.user?.role !== 'admin') {
+  if (!req.isAuthenticated() || req.user?.role !== 'admin') {
     return res.status(403).json({ message: 'Admin access required' });
   }
   next();
 }
 
 function isUser(req: Request, res: Response, next: Function) {
-  console.log('User check - user:', req.user); // Add logging
-  if (!req.user || !['admin', 'user'].includes(req.user?.role || '')) {
+  if (!req.isAuthenticated() || !['admin', 'user'].includes(req.user?.role || '')) {
     return res.status(403).json({ message: 'User access required' });
   }
   next();
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Log session configuration
-  app.use((req, res, next) => {
-    console.log('Session user:', req.user);
-    console.log('Is authenticated:', req.isAuthenticated());
-    next();
-  });
-
   setupAuth(app);
 
   // Public route - Get all workflows
@@ -75,8 +66,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Protected routes below
-
-  // Update the workflow creation route to handle metadata
   app.post("/api/workflows", isAdmin, upload.fields([
     { name: 'workflow-file', maxCount: 1 },
     { name: 'featured-image', maxCount: 1 },
