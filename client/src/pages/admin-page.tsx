@@ -57,6 +57,7 @@ const workflowSchema = z.object({
 const userSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["admin", "user", "viewer"]),
   tier: z.string().min(1, "Please select a tier"),
 });
@@ -362,6 +363,7 @@ export default function AdminPage() {
     defaultValues: {
       username: "",
       email: "",
+      password: "",
       role: "viewer",
       tier: tiers[0]?.name || "free", // Default to first tier or "free"
     },
@@ -369,8 +371,6 @@ export default function AdminPage() {
 
   const createUser = useMutation({
     mutationFn: async (data: z.infer<typeof userSchema>) => {
-      const tempPassword = Math.random().toString(36).slice(-8);
-
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -378,20 +378,17 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           ...data,
-          password: tempPassword,
           preferences: {
             tier: data.tier,
             interests: []
           }
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
 
-      toast({
-        title: "User Created Successfully",
-        description: `Temporary password: ${tempPassword}\nPlease share this with the user securely.`,
-        duration: 10000,
-      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to create user');
+      }
 
       return res.json();
     },
@@ -399,10 +396,14 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsUserDialogOpen(false);
       userForm.reset();
+      toast({
+        title: "Success",
+        description: "User created successfully",
+      });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Error creating user",
         description: error.message,
         variant: "destructive",
       });
@@ -476,7 +477,6 @@ export default function AdminPage() {
       });
     },
   });
-
 
 
   return (
@@ -833,6 +833,21 @@ export default function AdminPage() {
                         </FormItem>
                       )}
                     />
+                    {!editUser && (
+                      <FormField
+                        control={userForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
                     <FormField
                       control={userForm.control}
                       name="role"
@@ -994,11 +1009,11 @@ export default function AdminPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this user?')) {
-                            deleteUser.mutate(user.id);
-                          }
-                        }}
+                        onClick={()=> {
+                        if (confirm('Are you sure you want to delete this user?')) {
+                          deleteUser.mutate(user.id);
+                        }
+                      }}
                       >
                         <Trash className="h-4 w-4" />
                       </Button>
@@ -1010,7 +1025,7 @@ export default function AdminPage() {
           </Table>
         </TabsContent>
 
-<TabsContent value="tiers" className="space-y-4">
+        <TabsContent value="tiers" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Access Tier Management</h2>
             <Dialog open={isTierDialogOpen} onOpenChange={setIsTierDialogOpen}>
