@@ -18,7 +18,6 @@ This platform allows users to:
   - Secure password hashing
   - Session management
   - Protected routes
-  - Email and username registration
 
 - ✅ Workflow Management
   - Upload JSON workflow files
@@ -26,8 +25,6 @@ This platform allows users to:
   - Status tracking (draft, in_progress, needs_edit, published)
   - Filter workflows by status
   - Admin dashboard for workflow management
-  - Category and tag system
-  - User tier-based access control
 
 - ✅ File Storage
   - Secure file uploads
@@ -40,10 +37,7 @@ This platform allows users to:
   - Session persistence
 
 ### Coming Soon
-- 🔄 User Onboarding Flow
-  - Interest selection
-  - Workflow recommendations
-  - Personalized dashboard
+- 🔄 Workflow Editing Capabilities
 - 🔄 Advanced Search and Filtering
 - 🔄 User Dashboard
 - 🔄 Workflow Analytics
@@ -65,76 +59,27 @@ This platform allows users to:
 - Passport.js for authentication
 - Multer for file uploads
 
-## Getting Started
-
-### Prerequisites
-- Node.js 20+
-- PostgreSQL database
-- Git
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone [your-repo-url]
-cd workflow-management-platform
+### Core Dependencies
+```json
+{
+  "main": [
+    "@tanstack/react-query",
+    "express",
+    "drizzle-orm",
+    "passport",
+    "multer"
+  ],
+  "ui": [
+    "shadcn/ui",
+    "tailwindcss",
+    "lucide-react"
+  ],
+  "form": [
+    "react-hook-form",
+    "zod"
+  ]
+}
 ```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Set up environment variables:
-```bash
-cp .env.example .env
-```
-
-Required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string
-- `SESSION_SECRET`: Session encryption key
-- Other PostgreSQL-related variables (`PGHOST`, `PGUSER`, etc.)
-
-4. Initialize the database:
-```bash
-npm run db:push
-```
-
-5. Start the development server:
-```bash
-npm run dev
-```
-
-## User Types and Permissions
-
-### Roles
-- Admin: Full access to all features
-- User: Access to workflows based on tier and interests
-- Viewer: Can view public workflows without downloading
-
-### Tiers
-- Free: Basic access
-- Tier 1: Access to basic workflows
-- Tier 2: Access to advanced workflows
-- Premium: Full access to all workflows
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/AmazingFeature`
-3. Commit your changes: `git commit -m 'Add some AmazingFeature'`
-4. Push to the branch: `git push origin feature/AmazingFeature`
-5. Open a Pull Request
-
-## Current Status
-The application is functional with core features implemented. Recent updates include:
-- Enhanced user registration with email support
-- Category and tag system for workflows
-- User tier-based access control
-- Public viewing of workflows without authentication
-- Detailed workflow view pages
-
-The next phase of development will focus on the user onboarding experience and workflow recommendations.
 
 ## Critical Files
 
@@ -162,7 +107,6 @@ The next phase of development will focus on the user onboarding experience and w
 ```sql
 - id: serial (primary key)
 - username: text (unique)
-- email: text (unique)
 - password: text (hashed)
 - role: text (enum: admin, user, viewer)
 ```
@@ -185,3 +129,6 @@ Required environment variables:
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Session encryption key
 - Other PostgreSQL-related variables (`PGHOST`, `PGUSER`, etc.)
+
+## Current Status
+The application is functional with core features implemented. Data persistence is working through PostgreSQL integration. The next phase of development will focus on enhancing the editing capabilities and user experience.
