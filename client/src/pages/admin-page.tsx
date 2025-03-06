@@ -83,6 +83,8 @@ export default function AdminPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("workflows");
   const [showPassword, setShowPassword] = useState<Record<number, boolean>>({});
+  const [isTierDialogOpen, setIsTierDialogOpen] = useState(false);
+  const [editTier, setEditTier] = useState<Tier | null>(null);
 
   // Fetch tiers first to ensure they're available
   const { data: tiers = [] } = useQuery<Tier[]>({
@@ -426,9 +428,18 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tiers"] });
+      setIsTierDialogOpen(false);
+      setEditTier(null);
       toast({
         title: "Success",
         description: "Tier updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
@@ -941,35 +952,57 @@ export default function AdminPage() {
         <TabsContent value="tiers" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Access Tier Management</h2>
-            <Dialog>
+            <Dialog open={isTierDialogOpen} onOpenChange={setIsTierDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => {
+                  setEditTier(null);
+                }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Tier
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create New Access Tier</DialogTitle>
+                  <DialogTitle>
+                    {editTier ? 'Edit Access Tier' : 'Create New Access Tier'}
+                  </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={(e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
-                  createTier.mutate({
+                  const data = {
                     name: formData.get('name') as string,
                     description: formData.get('description') as string,
-                  });
+                  };
+
+                  if (editTier) {
+                    updateTier.mutate({ id: editTier.id, data });
+                  } else {
+                    createTier.mutate(data);
+                  }
                 }}>
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
-                      <Input id="name" name="name" required />
+                      <Input
+                        id="name"
+                        name="name"
+                        defaultValue={editTier?.name || ''}
+                        required
+                      />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y2">
                       <Label htmlFor="description">Description</Label>
-                      <Textarea id="description" name="description" required />
+                      <Textarea
+                        id="description"
+                        name="description"
+                        defaultValue={editTier?.description || ''}
+                        required
+                      />
                     </div>
-                    <Button type="submit" className="w-full">Create Tier</Button>
+                    <Button type="submit" className="w-full">
+                      {editTier ? 'Update Tier' : 'Create Tier'}
+                    </Button>
                   </div>
                 </form>
               </DialogContent>
@@ -1012,17 +1045,29 @@ export default function AdminPage() {
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        if (confirm('Are you sure you want to delete this tier?')) {
-                          deleteTier.mutate(tier.id);
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditTier(tier);
+                          setIsTierDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this tier?')) {
+                            deleteTier.mutate(tier.id);
+                          }
+                        }}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
