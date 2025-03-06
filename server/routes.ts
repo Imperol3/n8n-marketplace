@@ -67,8 +67,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      console.log('Received files:', Object.keys(files));
-      console.log('Received body:', req.body);
+      console.log('Debug - Received files:', files);
+      console.log('Debug - Received body:', req.body);
+      console.log('Debug - Metadata received:', req.body.metadata);
+
+      if (!files || !files.file) {
+        return res.status(400).json({ message: "No workflow file provided" });
+      }
 
       // Save files to storage
       const savedPaths = {
@@ -89,9 +94,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (e) {
         console.error('Error parsing metadata:', e);
         metadata = {
-          category: req.body.metadata?.category || '',
-          tags: req.body.metadata?.tags || [],
-          previewUrl: req.body.metadata?.previewUrl || null
+          category: '',
+          tags: [],
+          previewUrl: null
         };
       }
 
