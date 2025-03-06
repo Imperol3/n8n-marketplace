@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, FileJson, Edit, Image, Trash } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -924,11 +925,11 @@ export default function AdminPage() {
                   });
                 }}>
                   <div className="space-y-4">
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
                       <Input id="name" name="name" required />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
                       <Textarea id="description" name="description" required />
                     </div>
