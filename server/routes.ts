@@ -48,6 +48,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public route - Get single workflow
+  app.get("/api/workflows/:id", async (req, res) => {
+    try {
+      const workflow = await storage.getWorkflow(parseInt(req.params.id));
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      res.json(workflow);
+    } catch (error) {
+      console.error('Error fetching workflow:', error);
+      res.status(500).json({ message: "Failed to fetch workflow" });
+    }
+  });
+
   // Serve uploaded files (but not workflow files)
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

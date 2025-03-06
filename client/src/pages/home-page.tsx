@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Workflow } from "@shared/schema";
-import { Download, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { Download, ExternalLink, Image as ImageIcon, ArrowRight } from "lucide-react";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -70,61 +70,57 @@ export default function HomePage() {
       <main className="container mx-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {workflows?.map((workflow) => (
-            <Card key={workflow.id} className="flex flex-col h-[480px] overflow-hidden">
-              <div className="relative w-full h-[200px]">
-                {workflow.featuredImage ? (
-                  <img
-                    src={workflow.featuredImage}
-                    alt={workflow.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <ImageIcon className="w-12 h-12 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-              <CardHeader>
-                <CardTitle className="line-clamp-1">{workflow.title}</CardTitle>
-                <CardDescription className="line-clamp-1">
-                  {workflow.metadata?.category}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <p className="text-sm text-muted-foreground line-clamp-3 min-h-[4.5rem]">
-                  {workflow.description}
-                </p>
-                {workflow.metadata?.tags && (
-                  <div className="flex gap-2 mt-4 flex-wrap">
-                    {workflow.metadata.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-xs"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {workflow.extraImages && workflow.extraImages.length > 0 && (
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    +{workflow.extraImages.length} additional images
-                  </div>
-                )}
-              </CardContent>
+            <Card key={workflow.id} className="flex flex-col h-[480px] overflow-hidden group">
+              <Link href={`/workflows/${workflow.id}`} className="flex-1 cursor-pointer">
+                <div className="relative w-full h-[200px]">
+                  {workflow.featuredImage ? (
+                    <img
+                      src={workflow.featuredImage}
+                      alt={workflow.title}
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <CardHeader>
+                  <CardTitle className="line-clamp-1">{workflow.title}</CardTitle>
+                  <CardDescription className="line-clamp-1">
+                    {workflow.metadata?.category}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col">
+                  <p className="text-sm text-muted-foreground line-clamp-3 min-h-[4.5rem]">
+                    {workflow.description}
+                  </p>
+                  {workflow.metadata?.tags && (
+                    <div className="flex gap-2 mt-4 flex-wrap">
+                      {workflow.metadata.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 bg-secondary text-secondary-foreground rounded-full text-xs"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {workflow.extraImages && workflow.extraImages.length > 0 && (
+                    <div className="mt-4 text-sm text-muted-foreground">
+                      +{workflow.extraImages.length} additional images
+                    </div>
+                  )}
+                </CardContent>
+              </Link>
               <CardFooter className="flex justify-between border-t pt-4">
-                {workflow.metadata?.previewUrl && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href={workflow.metadata.previewUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Preview
-                    </a>
-                  </Button>
-                )}
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/workflows/${workflow.id}`}>
+                    View Details
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </Button>
                 {(user?.role === "admin" || user?.role === "user") ? (
                   <Button size="sm" asChild className="ml-auto">
                     <a href={`/api/workflows/${workflow.id}/download`}>
