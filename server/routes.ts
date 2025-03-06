@@ -18,7 +18,29 @@ async function hashPassword(password: string) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-// Update the multer configuration to handle multiple file types
+// Function to send webhook notification
+async function sendWebhookNotification(data: any) {
+  try {
+    const response = await fetch('https://dev.funautomations.io/webhook/df04170e-9c37-4acd-8427-991d22029f27', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook notification failed: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error sending webhook notification:', error);
+    // Don't throw - we don't want to fail user creation if notification fails
+  }
+}
+
+// Configure multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, file, cb) => {
@@ -36,21 +58,7 @@ const upload = multer({
   })
 });
 
-function isAdmin(req: Request, res: Response, next: Function) {
- if (req.user?.role !== 'admin') {
-   return res.status(403).json({ message: 'Admin access required' });
- }
- next();
-}
-
-function isUser(req: Request, res: Response, next: Function) {
- if (!['admin', 'user'].includes(req.user?.role || '')) {
-   return res.status(403).json({ message: 'User access required' });
- }
- next();
-}
-
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
   // Add these routes after setupAuth(app);
@@ -89,10 +97,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preferences: {
           tier,
           interests: []
+        },
+        metadata: {
+          isFirstLogin: true,
+          lastLogin: new Date().toISOString()
         }
       });
 
-      // Return response with temporary password only if it was auto-generated
+      // Send webhook notification
+      await sendWebhookNotification({
+        type: 'new_user',
+        username,
+        email,
+        temporaryPassword: password ? undefined : temporaryPassword,
+        message: `New user account created for ${email}`,
+        loginUrl: `${process.env.APP_URL || 'https://your-app.repl.co'}/auth`
+      });
+
+      // Return response with temporary password if it was auto-generated
       res.status(201).json({
         success: true,
         message: "User created successfully",
@@ -116,28 +138,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public route - Get all workflows
-  app.get("/api/workflows", async (_req, res) => {
+  // Add password reset request endpoint
+  app.post("/api/password-reset/request", async (req, res) => {
     try {
-      const workflows = await storage.getWorkflows();
-      res.json(workflows);
+      const { email } = req.body;
+
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found"
+        });
+      }
+
+      // Generate reset token
+      const resetToken = randomBytes(32).toString('hex');
+      const resetExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      // Store reset token
+      await storage.saveResetToken(user.id, resetToken, resetExpiry);
+
+      // Send webhook notification for password reset
+      await sendWebhookNotification({
+        type: 'password_reset_request',
+        email,
+        resetToken,
+        resetUrl: `${process.env.APP_URL || 'https://your-app.repl.co'}/reset-password?token=${resetToken}`,
+        message: `Password reset requested for ${email}`
+      });
+
+      res.json({
+        success: true,
+        message: "Password reset instructions have been sent to your email"
+      });
     } catch (error) {
-      console.error('Error fetching workflows:', error);
-      res.status(500).json({ message: "Failed to fetch workflows" });
+      console.error('Error requesting password reset:', error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to process password reset request"
+      });
     }
   });
 
-  // Public route - Get single workflow
-  app.get("/api/workflows/:id", async (req, res) => {
+  // Add endpoint to reset password with token
+  app.post("/api/password-reset/reset", async (req, res) => {
     try {
-      const workflow = await storage.getWorkflow(parseInt(req.params.id));
-      if (!workflow) {
-        return res.status(404).json({ message: "Workflow not found" });
+      const { token, newPassword } = req.body;
+
+      // Verify token and get user
+      const resetInfo = await storage.getResetToken(token);
+      if (!resetInfo || resetInfo.expiry < new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid or expired reset token"
+        });
       }
-      res.json(workflow);
+
+      // Update password and clear first login flag
+      await storage.updateUser(resetInfo.userId, {
+        password: await hashPassword(newPassword),
+        metadata: {
+          isFirstLogin: false,
+          lastLogin: new Date().toISOString()
+        }
+      });
+
+      // Clear used token
+      await storage.clearResetToken(token);
+
+      res.json({
+        success: true,
+        message: "Password has been reset successfully"
+      });
     } catch (error) {
-      console.error('Error fetching workflow:', error);
-      res.status(500).json({ message: "Failed to fetch workflow" });
+      console.error('Error resetting password:', error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to reset password"
+      });
     }
   });
 
@@ -379,8 +458,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add to your existing routes:
-
   // Get all tiers
   app.get("/api/tiers", isAdmin, async (_req, res) => {
     try {
@@ -440,6 +517,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public route - Get all workflows
+  app.get("/api/workflows", async (_req, res) => {
+    try {
+      const workflows = await storage.getWorkflows();
+      res.json(workflows);
+    } catch (error) {
+      console.error('Error fetching workflows:', error);
+      res.status(500).json({ message: "Failed to fetch workflows" });
+    }
+  });
+
+  // Public route - Get single workflow
+  app.get("/api/workflows/:id", async (req, res) => {
+    try {
+      const workflow = await storage.getWorkflow(parseInt(req.params.id));
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      res.json(workflow);
+    } catch (error) {
+      console.error('Error fetching workflow:', error);
+      res.status(500).json({ message: "Failed to fetch workflow" });
+    }
+  });
+
+
   const httpServer = createServer(app);
   return httpServer;
+}
+
+function isAdmin(req: Request, res: Response, next: Function) {
+ if (req.user?.role !== 'admin') {
+   return res.status(403).json({ message: 'Admin access required' });
+ }
+ next();
+}
+
+function isUser(req: Request, res: Response, next: Function) {
+ if (!['admin', 'user'].includes(req.user?.role || '')) {
+   return res.status(403).json({ message: 'User access required' });
+ }
+ next();
 }

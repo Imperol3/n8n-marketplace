@@ -75,6 +75,289 @@ const statusColors = {
   published: "bg-green-200 text-green-700",
 };
 
+const PasswordResetDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await fetch('/api/password-reset/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Reset Link Sent",
+        description: "Check your email for password reset instructions",
+      });
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reset Password</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          resetPasswordMutation.mutate(email);
+        }} className="space-y-4">
+          <div>
+            <Label htmlFor="reset-email">Email</Label>
+            <Input
+              id="reset-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+            />
+          </div>
+          <Button type="submit" className="w-full">
+            Send Reset Link
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const UserDialog = ({ isOpen, onClose, editUser }: { isOpen: boolean; onClose: () => void; editUser: User | null }) => {
+  const { toast } = useToast();
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+
+  const createUser = useMutation({
+    mutationFn: async (data: z.infer<typeof userSchema>) => {
+      const res = await fetch('/api/v1/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to create user');
+      }
+
+      return await res.json();
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      onClose();
+
+      if (response.data.temporaryPassword) {
+        navigator.clipboard.writeText(response.data.temporaryPassword);
+        toast({
+          title: "User Created Successfully",
+          description: (
+            <div className="space-y-2">
+              <p>User created! Temporary password has been copied to clipboard:</p>
+              <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                <code>{response.data.temporaryPassword}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(response.data.temporaryPassword);
+                    toast({
+                      title: "Copied!",
+                      description: "Password copied to clipboard",
+                    });
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                The user will be prompted to change their password on first login.
+              </p>
+            </div>
+          ),
+          duration: 10000,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "User created successfully with provided password",
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating user",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const userActions = (
+    <div className="space-x-2">
+      <Button variant="outline" onClick={() => setIsResetPasswordOpen(true)}>
+        Reset Password
+      </Button>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">User Management</h2>
+        <Dialog open={isOpen} onOpenChange={onClose}>
+          <DialogTrigger asChild>
+            <Button onClick={() => {
+              setEditUser(null);
+              userForm.reset();
+            }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editUser ? 'Edit User' : 'Add New User'}
+              </DialogTitle>
+            </DialogHeader>
+            <Form {...userForm}>
+              <form onSubmit={userForm.handleSubmit((data) => {
+                if (editUser) {
+                  updateUserAccess.mutate({
+                    userId: editUser.id,
+                    role: data.role,
+                    tier: data.tier
+                  });
+                } else {
+                  createUser.mutate(data);
+                }
+              })} className="space-y-4">
+                <FormField
+                  control={userForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          {...field}
+                          value={field.value || ''}
+                          placeholder="Leave empty for auto-generated password"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="tier"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tier</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a tier" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {tiers.map((tier) => (
+                            <SelectItem key={tier.id} value={tier.name}>
+                              {tier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createUser.isPending || updateUserAccess.isPending}
+                >
+                  {editUser ? 'Update User' : 'Create User'}
+                </Button>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <PasswordResetDialog
+        isOpen={isResetPasswordOpen}
+        onClose={() => setIsResetPasswordOpen(false)}
+      />
+    </>
+  );
+};
+
+
 export default function AdminPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -86,8 +369,9 @@ export default function AdminPage() {
   const [showPassword, setShowPassword] = useState<Record<number, boolean>>({});
   const [isTierDialogOpen, setIsTierDialogOpen] = useState(false);
   const [editTier, setEditTier] = useState<Tier | null>(null);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
 
-  // Fetch tiers first to ensure they're available
+
   const { data: tiers = [] } = useQuery<Tier[]>({
     queryKey: ["/api/tiers"],
   });
@@ -357,7 +641,6 @@ export default function AdminPage() {
     selectedStatus === 'all' ? true : workflow.status === selectedStatus
   );
 
-  // Update user form with dynamic tier options
   const userForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -369,20 +652,14 @@ export default function AdminPage() {
     },
   });
 
-  const createUser = useMutation({
+  const createUserMutation = useMutation({
     mutationFn: async (data: z.infer<typeof userSchema>) => {
       const res = await fetch('/api/v1/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...data,
-          preferences: {
-            tier: data.tier,
-            interests: []
-          }
-        }),
+        body: JSON.stringify(data),
       });
 
       if (!res.ok) {
@@ -390,22 +667,20 @@ export default function AdminPage() {
         throw new Error(error.message || 'Failed to create user');
       }
 
-      const response = await res.json();
-      return response;
+      return await res.json();
     },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsUserDialogOpen(false);
       userForm.reset();
 
-      // Show success message with password if it was auto-generated
       if (response.data.temporaryPassword) {
         navigator.clipboard.writeText(response.data.temporaryPassword);
         toast({
           title: "User Created Successfully",
           description: (
             <div className="space-y-2">
-              <p>Temporary password has been copied to clipboard:</p>
+              <p>User created! Temporary password has been copied to clipboard:</p>
               <div className="flex items-center gap-2 p-2 bg-muted rounded">
                 <code>{response.data.temporaryPassword}</code>
                 <Button
@@ -422,6 +697,9 @@ export default function AdminPage() {
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="text-sm text-muted-foreground">
+                The user will be prompted to change their password on first login.
+              </p>
             </div>
           ),
           duration: 10000,
@@ -702,7 +980,6 @@ export default function AdminPage() {
                 key={workflow.id}
                 className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow h-[600px]"
               >
-                {/* Image Container - Fixed height */}
                 <div className="relative w-full h-[200px] mb-4 rounded-md overflow-hidden bg-muted">
                   {workflow.featuredImage ? (
                     <img
@@ -715,7 +992,6 @@ export default function AdminPage() {
                       <Image className="w-12 h-12 text-muted-foreground" />
                     </div>
                   )}
-                  {/* Action buttons - Always visible */}
                   <div className="absolute top-2 right-2 flex gap-2">
                     <Button
                       variant="outline"
@@ -743,9 +1019,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Content Container - Fixed layout with overflow */}
-                <div className="flex-1 flex flex-col">
-                  <h3 className="font-medium text-lg mb-2 line-clamp-1">{workflow.title}</h3>
+                <div className="flex-1 flex flex-col"><h3 className="font-medium text-lg mb-2 line-clamp-1">{workflow.title}</h3>
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                     {workflow.description}
                   </p>
@@ -763,19 +1037,16 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  {/* View Button - New addition */}
                   <Button
                     variant="outline"
                     className="w-full mb-4"
                     onClick={() => {
-                      // Add view functionality here
                       window.location.href = `/workflows/${workflow.id}`;
                     }}
                   >
                     View Workflow
                   </Button>
 
-                  {/* Status and Actions - Fixed to bottom */}
                   <div className="mt-auto pt-4 border-t">
                     <div className="flex items-center justify-between">
                       <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
@@ -811,135 +1082,7 @@ export default function AdminPage() {
         <TabsContent value="users" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">User Management</h2>
-            <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => {
-                  setEditUser(null);
-                  userForm.reset();
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add User
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editUser ? 'Edit User' : 'Add New User'}
-                  </DialogTitle>
-                </DialogHeader>
-                <Form {...userForm}>
-                  <form onSubmit={userForm.handleSubmit((data) => {
-                    if (editUser) {
-                      updateUserAccess.mutate({
-                        userId: editUser.id,
-                        role: data.role,
-                        tier: data.tier
-                      });
-                    } else {
-                      createUser.mutate(data);
-                    }
-                  })} className="space-y-4">
-                    <FormField
-                      control={userForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={userForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={userForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password (Optional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              {...field}
-                              value={field.value || ''}
-                              placeholder="Leave empty for auto-generated password"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={userForm.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Role</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="viewer">Viewer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={userForm.control}
-                      name="tier"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tier</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a tier" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {tiers.map((tier) => (
-                                <SelectItem key={tier.id} value={tier.name}>
-                                  {tier.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={createUser.isPending || updateUserAccess.isPending}
-                    >
-                      {editUser ? 'Update User' : 'Create User'}
-                    </Button>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <UserDialog isOpen={isUserDialogOpen} onClose={() => setIsUserDialogOpen(false)} editUser={editUser} />
           </div>
 
           <Table>
