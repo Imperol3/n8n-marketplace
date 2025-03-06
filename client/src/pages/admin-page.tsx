@@ -47,8 +47,13 @@ export default function AdminPage() {
   });
 
   const createWorkflow = useMutation({
-    mutationFn: async (data: FormData) => {
-      const res = await apiRequest("POST", "/api/workflows", data);
+    mutationFn: async (formData: FormData) => {
+      const res = await fetch('/api/workflows', {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type, let the browser set it with the boundary
+      });
+      if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
     onSuccess: () => {
@@ -78,9 +83,7 @@ export default function AdminPage() {
     const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
     if (fileInput?.files?.[0]) {
       console.log('Uploading workflow file:', fileInput.files[0].name);
-      // Make sure we're using the same field name as multer expects
-      const file = fileInput.files[0];
-      formData.append("workflow-file", file, file.name);
+      formData.append("workflow-file", fileInput.files[0]);
     } else {
       toast({
         title: "Error",
@@ -113,7 +116,7 @@ export default function AdminPage() {
               <DialogTitle>Upload New Workflow</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" encType="multipart/form-data">
                 <FormField
                   control={form.control}
                   name="title"
