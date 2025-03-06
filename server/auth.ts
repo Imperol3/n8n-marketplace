@@ -35,7 +35,7 @@ async function comparePasswords(supplied: string, stored: string) {
   }
 }
 
-export { hashPassword }; 
+export { hashPassword };
 
 async function initializeAdmin() {
   try {
@@ -44,8 +44,13 @@ async function initializeAdmin() {
       console.log("Creating admin user...");
       await storage.createUser({
         username: "admin",
+        email: "admin@example.com",
         password: await hashPassword("admin123"),
         role: "admin",
+        preferences: {
+          interests: [],
+          tier: "premium"
+        }
       });
       console.log("Admin user created successfully");
     }
@@ -123,10 +128,19 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
+      const existingEmail = await storage.getUserByEmail(req.body.email);
+      if (existingEmail) {
+        return res.status(400).send("Email already exists");
+      }
+
       const user = await storage.createUser({
         ...req.body,
-        role: "user", 
+        role: "user",
         password: await hashPassword(req.body.password),
+        preferences: {
+          interests: [],
+          tier: "free"
+        }
       });
 
       req.login(user, (err) => {
