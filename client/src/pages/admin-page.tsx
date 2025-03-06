@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, FileJson, Edit } from "lucide-react";
+import { Plus, FileJson, Edit, Image } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -287,56 +287,89 @@ export default function AdminPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredWorkflows?.map((workflow) => (
           <div
             key={workflow.id}
-            className="p-4 border rounded-lg bg-card hover:shadow-md transition-shadow"
+            className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow h-full"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="font-medium text-lg">{workflow.title}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {workflow.description}
-                </p>
-              </div>
-              <FileJson className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            {/* Featured Image */}
+            <div className="relative w-full h-48 mb-4 rounded-md overflow-hidden bg-muted">
+              {workflow.featuredImage ? (
+                <img
+                  src={workflow.featuredImage}
+                  alt={workflow.title}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full">
+                  <Image className="w-12 h-12 text-muted-foreground" />
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-between mt-4">
-              <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
-                {getStatusDisplay(workflow.status)}
-              </span>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={workflow.status || 'draft'}
-                  onValueChange={(value) =>
-                    updateWorkflowStatus.mutate({
-                      id: workflow.id,
-                      status: value as WorkflowStatus
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="needs_edit">Needs Edit</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => toast({
-                    title: "Coming Soon",
-                    description: "Workflow editing will be available soon",
-                  })}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
+            {/* Content */}
+            <div className="flex-1 flex flex-col">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="font-medium text-lg line-clamp-1">{workflow.title}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-3 min-h-[3rem]">
+                    {workflow.description}
+                  </p>
+                </div>
+                <FileJson className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-4" />
+              </div>
+
+              {/* Additional Images Count */}
+              {workflow.extraImages && workflow.extraImages.length > 0 && (
+                <div className="text-sm text-muted-foreground mb-4">
+                  +{workflow.extraImages.length} additional images
+                </div>
+              )}
+
+              {/* Video URL Indicator */}
+              {workflow.videoUrl && (
+                <div className="text-sm text-muted-foreground mb-4">
+                  Video tutorial available
+                </div>
+              )}
+
+              {/* Status and Actions */}
+              <div className="flex items-center justify-between mt-auto pt-4 border-t">
+                <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
+                  {getStatusDisplay(workflow.status)}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={workflow.status || 'draft'}
+                    onValueChange={(value) =>
+                      updateWorkflowStatus.mutate({
+                        id: workflow.id,
+                        status: value as WorkflowStatus
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="needs_edit">Needs Edit</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => toast({
+                      title: "Coming Soon",
+                      description: "Workflow editing will be available soon",
+                    })}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
