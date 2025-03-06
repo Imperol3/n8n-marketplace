@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus } from "lucide-react";
+import { Plus, FileJson, Edit } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +49,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<WorkflowStatus | 'all'>('all');
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
 
   const { data: workflows } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
@@ -224,41 +225,54 @@ export default function AdminPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredWorkflows?.map((workflow) => (
           <div
             key={workflow.id}
-            className="flex items-center justify-between p-4 border rounded-lg"
+            className="p-4 border rounded-lg bg-card hover:shadow-md transition-shadow"
           >
-            <div>
-              <h3 className="font-medium">{workflow.title}</h3>
-              <p className="text-sm text-muted-foreground">
-                {workflow.description}
-              </p>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="font-medium text-lg">{workflow.title}</h3>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {workflow.description}
+                </p>
+              </div>
+              <FileJson className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center justify-between mt-4">
               <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status]}`}>
                 {workflow.status.replace('_', ' ').toUpperCase()}
               </span>
-              <Select
-                value={workflow.status}
-                onValueChange={(value) => 
-                  updateWorkflowStatus.mutate({ 
-                    id: workflow.id, 
-                    status: value as WorkflowStatus 
-                  })
-                }
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="needs_edit">Needs Edit</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={workflow.status}
+                  onValueChange={(value) => 
+                    updateWorkflowStatus.mutate({ 
+                      id: workflow.id, 
+                      status: value as WorkflowStatus 
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="needs_edit">Needs Edit</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => setSelectedWorkflow(workflow)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         ))}
