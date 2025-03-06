@@ -119,16 +119,32 @@ export default function AdminPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ role, preferences: { tier } }),
+        body: JSON.stringify({
+          role,
+          preferences: {
+            tier,
+            interests: [] // Maintain existing interests structure
+          }
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setIsUserDialogOpen(false);
+      setEditUser(null);
+      userForm.reset();
       toast({
         title: "Success",
         description: "User access updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
@@ -769,7 +785,8 @@ export default function AdminPage() {
                     if (editUser) {
                       updateUserAccess.mutate({
                         userId: editUser.id,
-                        ...data
+                        role: data.role,
+                        tier: data.tier
                       });
                     } else {
                       createUser.mutate(data);
