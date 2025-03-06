@@ -12,6 +12,9 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getUsers(): Promise<User[]>; // Add this line
+  updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
 
   // Workflow operations
   getWorkflows(): Promise<Workflow[]>;
@@ -52,6 +55,30 @@ export class DatabaseStorage implements IStorage {
       }
     }).returning();
     return user;
+  }
+
+  // Add getUsers implementation
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  // Add updateUser implementation
+  async updateUser(id: number, update: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(update)
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  // Add deleteUser implementation
+  async deleteUser(id: number): Promise<boolean> {
+    const [user] = await db
+      .delete(users)
+      .where(eq(users.id, id))
+      .returning();
+    return !!user;
   }
 
   async getWorkflows(): Promise<Workflow[]> {
