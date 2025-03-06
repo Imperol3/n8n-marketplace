@@ -67,9 +67,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      console.log('Debug - Received files:', files);
-      console.log('Debug - Received body:', req.body);
-      console.log('Debug - Metadata received:', req.body.metadata);
 
       if (!files || !files.file) {
         return res.status(400).json({ message: "No workflow file provided" });
@@ -77,28 +74,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Save files to storage
       const savedPaths = {
-        file: files?.file ? await fileStorage.saveFile(files.file[0].buffer, files.file[0].originalname) : null,
+        file: await fileStorage.saveFile(files.file[0].buffer, files.file[0].originalname),
         featuredImage: files?.featuredImage ? await fileStorage.saveFile(files.featuredImage[0].buffer, files.featuredImage[0].originalname) : null,
         extraImages: files?.extraImages ? await Promise.all(
           files.extraImages.map(f => fileStorage.saveFile(f.buffer, f.originalname))
         ) : null
       };
-
-      let metadata = {};
-      try {
-        metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {
-          category: '',
-          tags: [],
-          previewUrl: null
-        };
-      } catch (e) {
-        console.error('Error parsing metadata:', e);
-        metadata = {
-          category: '',
-          tags: [],
-          previewUrl: null
-        };
-      }
 
       const parsed = insertWorkflowSchema.parse({
         title: req.body.title,
@@ -106,7 +87,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filePath: savedPaths.file,
         featuredImage: savedPaths.featuredImage,
         extraImages: savedPaths.extraImages,
-        metadata: metadata,
+        metadata: {
+          category: req.body.category || '',
+          tags: [],
+          previewUrl: null
+        },
       });
 
       const workflow = await storage.createWorkflow(parsed);
