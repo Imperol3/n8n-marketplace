@@ -22,14 +22,6 @@ const upload = multer({
       }
       cb(new Error('Only JSON files are allowed for workflows'));
     }
-    // For images, accept common image formats
-    else if (['featuredImage', 'extraImages'].includes(file.fieldname)) {
-      const ext = path.extname(file.originalname).toLowerCase();
-      if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) {
-        return cb(null, true);
-      }
-      cb(new Error('Only jpg, jpeg, png, and gif files are allowed for images'));
-    }
     else {
       cb(new Error('Unexpected field'));
     }
@@ -56,24 +48,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-  // Get all workflows
-  app.get("/api/workflows", async (_req, res) => {
-    const workflows = await storage.getWorkflows();
-    res.json(workflows);
-  });
-
-  // Get single workflow
-  app.get("/api/workflows/:id", async (req, res) => {
-    const workflow = await storage.getWorkflow(parseInt(req.params.id));
-    if (!workflow) {
-      return res.status(404).json({ message: "Workflow not found" });
-    }
-    res.json(workflow);
-  });
-
   // Create workflow (admin only)
   app.post("/api/workflows", isAdmin, upload.fields([
-    { name: 'workflow-file', maxCount: 1 },
+    { name: 'workflow-file', maxCount: 1 }
   ]), async (req, res) => {
     try {
       // Debug logging
@@ -112,40 +89,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error instanceof Error ? error.message : String(error) 
       });
     }
-  });
-
-  // Update workflow (admin only)
-  app.patch("/api/workflows/:id", isAdmin, async (req, res) => {
-    try {
-      const workflow = await storage.updateWorkflow(
-        parseInt(req.params.id),
-        req.body
-      );
-      if (!workflow) {
-        return res.status(404).json({ message: "Workflow not found" });
-      }
-      res.json(workflow);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid workflow data" });
-    }
-  });
-
-  // Delete workflow (admin only)
-  app.delete("/api/workflows/:id", isAdmin, async (req, res) => {
-    const workflow = await storage.getWorkflow(parseInt(req.params.id));
-    if (!workflow) {
-      return res.status(404).json({ message: "Workflow not found" });
-    }
-
-    // Delete associated files
-    if (workflow.filePath) await fileStorage.deleteFile(workflow.filePath);
-    if (workflow.featuredImage) await fileStorage.deleteFile(workflow.featuredImage);
-    if (workflow.extraImages) {
-      await Promise.all(workflow.extraImages.map(img => fileStorage.deleteFile(img)));
-    }
-
-    await storage.deleteWorkflow(parseInt(req.params.id));
-    res.status(204).send();
   });
 
   // Download workflow file (user only)
