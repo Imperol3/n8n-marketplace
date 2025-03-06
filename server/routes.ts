@@ -78,6 +78,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { name: 'extraImages', maxCount: 5 }
   ]), async (req, res) => {
     try {
+      // Debug logging
+      console.log('Upload request received');
+      console.log('Files:', req.files);
+      console.log('Body:', req.body);
+
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
       if (!files || !files['workflow-file']) {

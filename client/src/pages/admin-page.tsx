@@ -97,16 +97,15 @@ export default function AdminPage() {
     const formData = new FormData();
     formData.append("title", data.title);
     formData.append("description", data.description);
-    formData.append("metadata", JSON.stringify({
-      category: data.metadata.category,
-      tags: data.metadata.tags || [],
-      previewUrl: data.metadata.previewUrl || null,
-    }));
+    formData.append("category", data.metadata.category);
 
     // Handle workflow file
     const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
     if (fileInput?.files?.[0]) {
+      console.log('Appending workflow file:', fileInput.files[0].name);
       formData.append("workflow-file", fileInput.files[0]);
+    } else {
+      console.log('No workflow file selected');
     }
 
     // Handle featured image
@@ -226,6 +225,7 @@ export default function AdminPage() {
                       type="file"
                       accept=".json"
                       className="mt-1"
+                      required
                     />
                   </div>
                 </div>

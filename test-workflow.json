@@ -1,0 +1,11 @@
+{
+  "name": "Test Workflow",
+  "version": "1.0",
+  "steps": [
+    {
+      "id": "step1",
+      "type": "action",
+      "name": "First Step"
+    }
+  ]
+}
