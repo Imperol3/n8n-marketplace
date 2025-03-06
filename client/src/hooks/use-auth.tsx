@@ -5,7 +5,7 @@ import {
   UseMutationResult,
 } from "@tanstack/react-query";
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
-import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 type AuthContextType = {
@@ -17,7 +17,10 @@ type AuthContextType = {
   registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
 };
 
-type LoginData = Pick<InsertUser, "username" | "password">;
+type LoginData = {
+  username: string;
+  password: string;
+};
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -35,12 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const response = await fetch("/api/user", {
           credentials: "include",
         });
+
         if (response.status === 401) {
           return null;
         }
+
         if (!response.ok) {
           throw new Error("Failed to fetch user");
         }
+
         return response.json();
       } catch (error) {
         console.error("Error fetching user:", error);
@@ -51,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
+      console.log("Login attempt:", credentials.username);
       const response = await fetch("/api/login", {
         method: "POST",
         headers: {
@@ -85,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: InsertUser) => {
+      console.log("Registration attempt:", userData.username);
       const response = await fetch("/api/register", {
         method: "POST",
         headers: {
