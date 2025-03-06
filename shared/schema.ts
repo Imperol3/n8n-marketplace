@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -13,15 +13,16 @@ export const workflows = pgTable("workflows", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  filePath: text("file_path").notNull(), 
-  featuredImage: text("featured_image"),
-  extraImages: text("extra_images").array(),
+  filePath: text("file_path").notNull(),
   metadata: jsonb("metadata").$type<{
     category: string;
     tags: string[];
     previewUrl?: string;
-  }>(),
-  createdAt: text("created_at").notNull(),
+  }>().notNull().default({
+    category: '',
+    tags: [],
+    previewUrl: null
+  }),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -34,8 +35,6 @@ export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   title: true,
   description: true,
   filePath: true,
-  featuredImage: true,
-  extraImages: true,
   metadata: true,
 });
 

@@ -97,8 +97,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: req.body.title,
         description: req.body.description,
         filePath: workflowPath,
-        featuredImage: null,
-        extraImages: null,
         metadata: {
           category: '',
           tags: [],
