@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, FileJson, Edit, Image, Trash } from "lucide-react";
+import { Plus, FileJson, Edit, Image, Trash, Eye, EyeOff } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -51,15 +51,14 @@ const workflowSchema = z.object({
   videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   categories: z.string().min(1, "Please enter at least one category"),
   tags: z.string().optional(),
-  requiredTier: z.string(), // Changed to string to handle dynamic tier names
+  requiredTier: z.string().min(1, "Please select a tier"), // Changed to string for dynamic tiers
 });
 
-// Update userSchema to use dynamic tier validation
 const userSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   role: z.enum(["admin", "user", "viewer"]),
-  tier: z.string().min(1, "Please select a tier"), // Changed from enum to string
+  tier: z.string().min(1, "Please select a tier"),
 });
 
 const getStatusDisplay = (status: WorkflowStatus | undefined) => {
@@ -83,8 +82,9 @@ export default function AdminPage() {
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("workflows");
+  const [showPassword, setShowPassword] = useState<Record<number, boolean>>({});
 
-  // Fetch tiers first
+  // Fetch tiers first to ensure they're available
   const { data: tiers = [] } = useQuery<Tier[]>({
     queryKey: ["/api/tiers"],
   });
@@ -160,7 +160,7 @@ export default function AdminPage() {
       videoUrl: "",
       categories: "",
       tags: "",
-      requiredTier: "free",
+      requiredTier: tiers[0]?.name || "free", // Default to first tier
     },
   });
 
@@ -839,8 +839,10 @@ export default function AdminPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Tier</TableHead>
+                <TableHead>Temporary Password</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -848,6 +850,7 @@ export default function AdminPage() {
               {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.username}</TableCell>
+                  <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <Select
                       defaultValue={user.role}
@@ -891,6 +894,27 @@ export default function AdminPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </TableCell>
+                  <TableCell className="relative">
+                    <div className="flex items-center space-x-2">
+                      <span className={!showPassword[user.id] ? "filter blur-sm" : ""}>
+                        {user.password?.split('.')[1] || 'N/A'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowPassword(prev => ({
+                          ...prev,
+                          [user.id]: !prev[user.id]
+                        }))}
+                      >
+                        {showPassword[user.id] ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button
