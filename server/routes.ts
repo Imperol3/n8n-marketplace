@@ -6,12 +6,18 @@ import multer from "multer";
 import path from "path";
 import express from "express";
 import { fileStorage } from "./storage/fileStorage";
+import fs from 'fs';
 
 // Update the multer configuration to handle multiple file types
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, file, cb) => {
-      cb(null, path.join(process.cwd(), 'uploads'))
+      const uploadDir = path.join(process.cwd(), 'uploads');
+      // Ensure the uploads directory exists
+      if (!fs.existsSync(uploadDir)){
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
     },
     filename: (_req, file, cb) => {
       const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,13 @@ export default function HomePage() {
   const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
   });
+
+  // Add image error handling function
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.onerror = null; // Prevent infinite loop
+    e.currentTarget.src = ''; // Clear the src
+    e.currentTarget.parentElement?.classList.add('image-error');
+  };
 
   if (isLoading) {
     return (
@@ -72,15 +80,16 @@ export default function HomePage() {
           {workflows?.map((workflow) => (
             <Card key={workflow.id} className="flex flex-col h-[480px] overflow-hidden group">
               <Link href={`/workflows/${workflow.id}`} className="flex-1 cursor-pointer">
-                <div className="relative w-full h-[200px]">
+                <div className="relative w-full h-[200px] bg-muted">
                   {workflow.featuredImage ? (
                     <img
                       src={workflow.featuredImage}
                       alt={workflow.title}
+                      onError={handleImageError}
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <div className="w-full h-full flex items-center justify-center">
                       <ImageIcon className="w-12 h-12 text-muted-foreground" />
                     </div>
                   )}
