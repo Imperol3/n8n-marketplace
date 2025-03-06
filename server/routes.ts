@@ -5,6 +5,8 @@ import { setupAuth } from "./auth";
 import { insertWorkflowSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
+import express from "express";
+import { fileStorage } from "./storage/fileStorage";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -39,6 +41,9 @@ function isUser(req: Request, res: Response, next: Function) {
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
+  // Serve uploaded files
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
   // Get all workflows
   app.get("/api/workflows", async (_req, res) => {
     const workflows = await storage.getWorkflows();
@@ -65,6 +70,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Received files:', Object.keys(files));
       console.log('Received body:', req.body);
 
+      // Save files to storage
+      const savedPaths = {
+        file: files?.file ? await fileStorage.saveFile(files.file[0].buffer, files.file[0].originalname) : null,
+        featuredImage: files?.featuredImage ? await fileStorage.saveFile(files.featuredImage[0].buffer, files.featuredImage[0].originalname) : null,
+        extraImages: files?.extraImages ? await Promise.all(
+          files.extraImages.map(f => fileStorage.saveFile(f.buffer, f.originalname))
+        ) : null
+      };
+
       let metadata = {};
       try {
         metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {
@@ -84,9 +98,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsed = insertWorkflowSchema.parse({
         title: req.body.title,
         description: req.body.description,
-        filePath: files?.file ? `/uploads/${files.file[0].originalname}` : null,
-        featuredImage: files?.featuredImage ? `/uploads/${files.featuredImage[0].originalname}` : null,
-        extraImages: files?.extraImages ? files.extraImages.map(f => `/uploads/${f.originalname}`) : null,
+        filePath: savedPaths.file,
+        featuredImage: savedPaths.featuredImage,
+        extraImages: savedPaths.extraImages,
         metadata: metadata,
       });
 
@@ -116,10 +130,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete workflow (admin only)
   app.delete("/api/workflows/:id", isAdmin, async (req, res) => {
-    const success = await storage.deleteWorkflow(parseInt(req.params.id));
-    if (!success) {
+    const workflow = await storage.getWorkflow(parseInt(req.params.id));
+    if (!workflow) {
       return res.status(404).json({ message: "Workflow not found" });
     }
+
+    // Delete associated files
+    if (workflow.filePath) await fileStorage.deleteFile(workflow.filePath);
+    if (workflow.featuredImage) await fileStorage.deleteFile(workflow.featuredImage);
+    if (workflow.extraImages) {
+      await Promise.all(workflow.extraImages.map(img => fileStorage.deleteFile(img)));
+    }
+
+    await storage.deleteWorkflow(parseInt(req.params.id));
     res.status(204).send();
   });
 
@@ -130,8 +153,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Workflow file not found" });
     }
 
-    // In a real app, we would stream the file from storage
-    res.download(workflow.filePath);
+    try {
+      const filePath = fileStorage.getAbsolutePath(workflow.filePath);
+      res.download(filePath);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      res.status(404).json({ message: "Workflow file not found" });
+    }
   });
 
   const httpServer = createServer(app);
