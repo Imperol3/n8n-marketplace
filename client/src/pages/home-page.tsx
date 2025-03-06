@@ -97,7 +97,7 @@ export default function HomePage() {
                 <CardHeader>
                   <CardTitle className="line-clamp-1">{workflow.title}</CardTitle>
                   <CardDescription className="line-clamp-1">
-                    {workflow.metadata?.category}
+                    {workflow.metadata?.categories?.join(", ") || "Uncategorized"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col">

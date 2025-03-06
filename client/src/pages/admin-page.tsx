@@ -86,9 +86,9 @@ export default function AdminPage() {
         title: editWorkflow.title,
         description: editWorkflow.description,
         videoUrl: editWorkflow.videoUrl || "",
-        categories: editWorkflow.metadata.categories.join(", "),
-        tags: editWorkflow.metadata.tags.join(", "),
-        requiredTier: editWorkflow.metadata.requiredTier,
+        categories: editWorkflow.metadata?.categories?.join(", ") || "",
+        tags: editWorkflow.metadata?.tags?.join(", ") || "",
+        requiredTier: editWorkflow.metadata?.requiredTier || "free",
       });
     } else {
       form.reset({
