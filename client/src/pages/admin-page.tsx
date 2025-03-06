@@ -1,3 +1,4 @@
+import React from "react";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ const statusColors = {
 export default function AdminPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<WorkflowStatus | 'all'>('all');
 
   const { data: workflows } = useQuery<Workflow[]>({
@@ -76,6 +78,29 @@ export default function AdminPage() {
       requiredTier: "free",
     },
   });
+
+  // Reset form when editWorkflow changes
+  React.useEffect(() => {
+    if (editWorkflow) {
+      form.reset({
+        title: editWorkflow.title,
+        description: editWorkflow.description,
+        videoUrl: editWorkflow.videoUrl || "",
+        categories: editWorkflow.metadata.categories.join(", "),
+        tags: editWorkflow.metadata.tags.join(", "),
+        requiredTier: editWorkflow.metadata.requiredTier,
+      });
+    } else {
+      form.reset({
+        title: "",
+        description: "",
+        videoUrl: "",
+        categories: "",
+        tags: "",
+        requiredTier: "free",
+      });
+    }
+  }, [editWorkflow]);
 
   const createWorkflow = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -104,6 +129,55 @@ export default function AdminPage() {
     },
   });
 
+  const updateWorkflow = useMutation({
+    mutationFn: async ({ id, formData }: { id: number; formData: FormData }) => {
+      const res = await fetch(`/api/workflows/${id}`, {
+        method: 'PATCH',
+        body: formData,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
+      setIsOpen(false);
+      setEditWorkflow(null);
+      form.reset();
+      toast({
+        title: "Success",
+        description: "Workflow updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateWorkflowStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: WorkflowStatus }) => {
+      const res = await fetch(`/api/workflows/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
+      toast({
+        title: "Success",
+        description: "Workflow status updated successfully",
+      });
+    },
+  });
+
   const onSubmit = async (data: z.infer<typeof workflowSchema>) => {
     const formData = new FormData();
     formData.append("title", data.title);
@@ -123,37 +197,59 @@ export default function AdminPage() {
     const featuredImage = document.querySelector<HTMLInputElement>('#featured-image')?.files?.[0];
     const extraImages = document.querySelector<HTMLInputElement>('#extra-images')?.files;
 
-    if (!workflowFile) {
-      toast({
-        title: "Error",
-        description: "Please select a workflow file",
-        variant: "destructive",
-      });
-      return;
-    }
+    // If editing, only include files if they're changed
+    if (editWorkflow) {
+      if (workflowFile) {
+        formData.append("workflow-file", workflowFile);
+      }
+      if (featuredImage) {
+        formData.append("featured-image", featuredImage);
+      }
+      if (extraImages && extraImages.length > 0) {
+        Array.from(extraImages).forEach(file => {
+          formData.append("extra-images", file);
+        });
+      }
 
-    if (!featuredImage) {
-      toast({
-        title: "Error",
-        description: "Please select a featured image",
-        variant: "destructive",
-      });
-      return;
-    }
+      try {
+        await updateWorkflow.mutateAsync({ id: editWorkflow.id, formData });
+      } catch (error) {
+        console.error('Error updating workflow:', error);
+      }
+    } else {
+      // For new workflows, require the workflow file and featured image
+      if (!workflowFile) {
+        toast({
+          title: "Error",
+          description: "Please select a workflow file",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    formData.append("workflow-file", workflowFile);
-    formData.append("featured-image", featuredImage);
+      if (!featuredImage) {
+        toast({
+          title: "Error",
+          description: "Please select a featured image",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (extraImages) {
-      Array.from(extraImages).forEach(file => {
-        formData.append("extra-images", file);
-      });
-    }
+      formData.append("workflow-file", workflowFile);
+      formData.append("featured-image", featuredImage);
 
-    try {
-      await createWorkflow.mutateAsync(formData);
-    } catch (error) {
-      console.error('Error creating workflow:', error);
+      if (extraImages) {
+        Array.from(extraImages).forEach(file => {
+          formData.append("extra-images", file);
+        });
+      }
+
+      try {
+        await createWorkflow.mutateAsync(formData);
+      } catch (error) {
+        console.error('Error creating workflow:', error);
+      }
     }
   };
 
@@ -186,14 +282,16 @@ export default function AdminPage() {
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => setEditWorkflow(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Workflow
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Upload New Workflow</DialogTitle>
+              <DialogTitle>
+                {editWorkflow ? 'Edit Workflow' : 'Upload New Workflow'}
+              </DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" encType="multipart/form-data">
@@ -273,23 +371,27 @@ export default function AdminPage() {
                   )}
                 />
                 <div>
-                  <FormLabel htmlFor="workflow-file">Workflow File (JSON)</FormLabel>
+                  <FormLabel htmlFor="workflow-file">
+                    {editWorkflow ? 'Replace Workflow File (Optional)' : 'Workflow File (JSON)'}
+                  </FormLabel>
                   <Input
                     id="workflow-file"
                     type="file"
                     accept=".json"
                     className="mt-1"
-                    required
+                    required={!editWorkflow}
                   />
                 </div>
                 <div>
-                  <FormLabel htmlFor="featured-image">Featured Image (Required)</FormLabel>
+                  <FormLabel htmlFor="featured-image">
+                    {editWorkflow ? 'Replace Featured Image (Optional)' : 'Featured Image (Required)'}
+                  </FormLabel>
                   <Input
                     id="featured-image"
                     type="file"
                     accept="image/*"
                     className="mt-1"
-                    required
+                    required={!editWorkflow}
                   />
                 </div>
                 <div>
@@ -318,9 +420,9 @@ export default function AdminPage() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={createWorkflow.isPending}
+                  disabled={createWorkflow.isPending || updateWorkflow.isPending}
                 >
-                  Create Workflow
+                  {editWorkflow ? 'Update Workflow' : 'Create Workflow'}
                 </Button>
               </form>
             </Form>
@@ -401,10 +503,10 @@ export default function AdminPage() {
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => toast({
-                        title: "Coming Soon",
-                        description: "Workflow editing will be available soon",
-                      })}
+                      onClick={() => {
+                        setEditWorkflow(workflow);
+                        setIsOpen(true);
+                      }}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>

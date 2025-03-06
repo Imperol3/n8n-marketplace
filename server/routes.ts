@@ -118,6 +118,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update workflow (admin only)
+  app.patch("/api/workflows/:id", isAdmin, upload.fields([
+    { name: 'workflow-file', maxCount: 1 },
+    { name: 'featured-image', maxCount: 1 },
+    { name: 'extra-images', maxCount: 5 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const workflow = await storage.getWorkflow(parseInt(req.params.id));
+
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+
+      // Parse metadata from the request body
+      const metadata = req.body.metadata ? JSON.parse(req.body.metadata) : workflow.metadata;
+
+      const updateData: any = {
+        title: req.body.title,
+        description: req.body.description,
+        videoUrl: req.body.videoUrl || workflow.videoUrl,
+        metadata: {
+          ...workflow.metadata,
+          ...metadata
+        }
+      };
+
+      // Only update files if new ones are uploaded
+      if (files['workflow-file']) {
+        updateData.filePath = `/uploads/${files['workflow-file'][0].filename}`;
+      }
+      if (files['featured-image']) {
+        updateData.featuredImage = `/uploads/${files['featured-image'][0].filename}`;
+      }
+      if (files['extra-images']) {
+        updateData.extraImages = files['extra-images'].map(file => `/uploads/${file.filename}`);
+      }
+
+      const updatedWorkflow = await storage.updateWorkflow(parseInt(req.params.id), updateData);
+
+      if (!updatedWorkflow) {
+        return res.status(404).json({ message: "Failed to update workflow" });
+      }
+
+      res.json(updatedWorkflow);
+    } catch (error) {
+      console.error('Error updating workflow:', error);
+      res.status(400).json({
+        message: "Failed to update workflow",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Download workflow file (authenticated users only)
   app.get("/api/workflows/:id/download", isUser, async (req, res) => {
     const workflow = await storage.getWorkflow(parseInt(req.params.id));
