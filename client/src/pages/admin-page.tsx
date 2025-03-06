@@ -291,10 +291,10 @@ export default function AdminPage() {
         {filteredWorkflows?.map((workflow) => (
           <div
             key={workflow.id}
-            className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow h-full"
+            className="flex flex-col p-6 border rounded-lg bg-card hover:shadow-md transition-shadow h-[480px]"
           >
-            {/* Featured Image */}
-            <div className="relative w-full h-48 mb-4 rounded-md overflow-hidden bg-muted">
+            {/* Featured Image Container - Fixed height */}
+            <div className="relative w-full h-[200px] mb-4 rounded-md overflow-hidden bg-muted">
               {workflow.featuredImage ? (
                 <img
                   src={workflow.featuredImage}
@@ -308,67 +308,66 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Content */}
-            <div className="flex-1 flex flex-col">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="font-medium text-lg line-clamp-1">{workflow.title}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-3 min-h-[3rem]">
-                    {workflow.description}
-                  </p>
-                </div>
-                <FileJson className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-4" />
+            {/* Content Container - Fixed layout */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="mb-4">
+                <h3 className="font-medium text-lg line-clamp-1 mb-2">{workflow.title}</h3>
+                <p className="text-sm text-muted-foreground line-clamp-3 min-h-[4.5rem]">
+                  {workflow.description}
+                </p>
               </div>
 
-              {/* Additional Images Count */}
-              {workflow.extraImages && workflow.extraImages.length > 0 && (
-                <div className="text-sm text-muted-foreground mb-4">
-                  +{workflow.extraImages.length} additional images
-                </div>
-              )}
+              {/* Additional Info - Fixed height section */}
+              <div className="space-y-2 mb-4">
+                {workflow.extraImages && workflow.extraImages.length > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    +{workflow.extraImages.length} additional images
+                  </div>
+                )}
+                {workflow.videoUrl && (
+                  <div className="text-sm text-muted-foreground">
+                    Video tutorial available
+                  </div>
+                )}
+              </div>
 
-              {/* Video URL Indicator */}
-              {workflow.videoUrl && (
-                <div className="text-sm text-muted-foreground mb-4">
-                  Video tutorial available
-                </div>
-              )}
-
-              {/* Status and Actions */}
-              <div className="flex items-center justify-between mt-auto pt-4 border-t">
-                <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
-                  {getStatusDisplay(workflow.status)}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={workflow.status || 'draft'}
-                    onValueChange={(value) =>
-                      updateWorkflowStatus.mutate({
-                        id: workflow.id,
-                        status: value as WorkflowStatus
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="needs_edit">Needs Edit</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => toast({
-                      title: "Coming Soon",
-                      description: "Workflow editing will be available soon",
-                    })}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
+              {/* Status and Actions - Fixed to bottom */}
+              <div className="mt-auto pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
+                    {getStatusDisplay(workflow.status)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={workflow.status || 'draft'}
+                      onValueChange={(value) =>
+                        updateWorkflowStatus.mutate({
+                          id: workflow.id,
+                          status: value as WorkflowStatus
+                        })
+                      }
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="needs_edit">Needs Edit</SelectItem>
+                        <SelectItem value="published">Published</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => toast({
+                        title: "Coming Soon",
+                        description: "Workflow editing will be available soon",
+                      })}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
