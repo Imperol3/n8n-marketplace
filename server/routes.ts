@@ -179,6 +179,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Workflow file not found" });
     }
 
+    // Check user's tier against workflow's required tier
+    const tiers = ["free", "tier1", "tier2", "premium"];
+    const userTier = req.user?.preferences?.tier || "free";
+    const requiredTier = workflow.metadata?.requiredTier || "free";
+
+    const userTierIndex = tiers.indexOf(userTier);
+    const requiredTierIndex = tiers.indexOf(requiredTier);
+
+    if (userTierIndex < requiredTierIndex) {
+      return res.status(403).json({ 
+        message: "Upgrade required",
+        currentTier: userTier,
+        requiredTier: requiredTier
+      });
+    }
+
     try {
       const filePath = fileStorage.getAbsolutePath(workflow.filePath);
       res.download(filePath);

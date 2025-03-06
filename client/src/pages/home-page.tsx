@@ -131,12 +131,20 @@ export default function HomePage() {
                   </Link>
                 </Button>
                 {(user?.role === "admin" || user?.role === "user") ? (
-                  <Button size="sm" asChild className="ml-auto">
-                    <a href={`/api/workflows/${workflow.id}/download`}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </a>
-                  </Button>
+                  user.preferences.tier >= (workflow.metadata?.requiredTier || "free") ? (
+                    <Button size="sm" asChild className="ml-auto">
+                      <a href={`/api/workflows/${workflow.id}/download`}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="secondary" className="ml-auto" asChild>
+                      <Link href="/auth">
+                        Upgrade to {workflow.metadata?.requiredTier} to Download
+                      </Link>
+                    </Button>
+                  )
                 ) : (
                   <Button size="sm" asChild className="ml-auto" variant="secondary">
                     <Link href="/auth">
