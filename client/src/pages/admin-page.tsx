@@ -949,7 +949,6 @@ export default function AdminPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Tier</TableHead>
-                <TableHead>Temporary Password</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -957,7 +956,11 @@ export default function AdminPage() {
               {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-between">
+                      <span>{user.email}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Select
                       defaultValue={user.role}
@@ -1001,26 +1004,6 @@ export default function AdminPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </TableCell>
-                  <TableCell className="relative">
-                    <div className="flex items-center space-x-2">
-                      <span className={!showPassword[user.id] ? "filter blur-sm" : ""}>                      {user.password?.split('.')[1] || 'N/A'}
-                    </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowPassword(prev => ({
-                          ...prev,
-                          [user.id]: !prev[user.id]
-                        }))}
-                      >
-                        {showPassword[user.id] ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">

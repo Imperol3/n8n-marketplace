@@ -7,6 +7,16 @@ import path from "path";
 import express from "express";
 import { fileStorage } from "./storage/fileStorage";
 import fs from 'fs';
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
 
 // Update the multer configuration to handle multiple file types
 const upload = multer({
@@ -45,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add these routes after setupAuth(app);
 
-  // Update the user creation API endpoint to use the auth system
+  // Update the user creation API endpoint to handle passwords properly
   app.post("/api/v1/users", async (req, res) => {
     try {
       // Validate required fields
@@ -70,11 +80,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate password if not provided
       const temporaryPassword = password || Math.random().toString(36).slice(-8);
 
-      // Create user using the storage system
+      // Create user with hashed password
       const user = await storage.createUser({
         username,
         email,
-        password: temporaryPassword,
+        password: await hashPassword(temporaryPassword),
         role,
         preferences: {
           tier,
@@ -82,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Return response with or without temporary password based on whether it was auto-generated
+      // Return response with temporary password only if it was auto-generated
       res.status(201).json({
         success: true,
         message: "User created successfully",
