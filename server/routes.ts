@@ -67,7 +67,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Protected routes below
 
-  // Create workflow (admin only)
+  // Update the workflow creation route to handle metadata
   app.post("/api/workflows", isAdmin, upload.fields([
     { name: 'workflow-file', maxCount: 1 },
     { name: 'featured-image', maxCount: 1 },
@@ -80,6 +80,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Required files missing" });
       }
 
+      // Parse metadata from the request body
+      const metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {
+        categories: [],
+        tags: [],
+        requiredTier: "free"
+      };
+
       const workflow = await storage.createWorkflow({
         title: req.body.title,
         description: req.body.description,
@@ -88,9 +95,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extraImages: files['extra-images']?.map(file => `/uploads/${file.filename}`) || [],
         videoUrl: req.body.videoUrl || null,
         metadata: {
-          category: '',
-          tags: [],
-          previewUrl: undefined
+          categories: metadata.categories || [],
+          tags: metadata.tags || [],
+          requiredTier: metadata.requiredTier || "free",
+          previewUrl: metadata.previewUrl
         },
       });
 

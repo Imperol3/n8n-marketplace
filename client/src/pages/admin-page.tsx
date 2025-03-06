@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Workflow, WorkflowStatus } from "@shared/schema";
+import { Workflow, WorkflowStatus, WORKFLOW_CATEGORIES } from "@shared/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -37,6 +37,9 @@ const workflowSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  categories: z.string().min(1, "Please enter at least one category"),
+  tags: z.string().optional(),
+  requiredTier: z.enum(["free", "tier1", "tier2", "premium"]),
 });
 
 // Update the status display logic to handle undefined status and improve formatting
@@ -68,6 +71,9 @@ export default function AdminPage() {
       title: "",
       description: "",
       videoUrl: "",
+      categories: "",
+      tags: "",
+      requiredTier: "free",
     },
   });
 
@@ -98,27 +104,6 @@ export default function AdminPage() {
     },
   });
 
-  const updateWorkflowStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: WorkflowStatus }) => {
-      const res = await fetch(`/api/workflows/${id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
-      toast({
-        title: "Success",
-        description: "Workflow status updated successfully",
-      });
-    },
-  });
-
   const onSubmit = async (data: z.infer<typeof workflowSchema>) => {
     const formData = new FormData();
     formData.append("title", data.title);
@@ -126,6 +111,13 @@ export default function AdminPage() {
     if (data.videoUrl) {
       formData.append("videoUrl", data.videoUrl);
     }
+
+    // Handle categories and tags
+    formData.append("metadata", JSON.stringify({
+      categories: data.categories.split(',').map(c => c.trim()),
+      tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
+      requiredTier: data.requiredTier,
+    }));
 
     const workflowFile = document.querySelector<HTMLInputElement>('#workflow-file')?.files?.[0];
     const featuredImage = document.querySelector<HTMLInputElement>('#featured-image')?.files?.[0];
@@ -227,6 +219,55 @@ export default function AdminPage() {
                       <FormControl>
                         <Textarea {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="categories"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categories (comma-separated)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Sales, Marketing, AI Agents" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tags (comma-separated, optional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="automation, email, crm" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="requiredTier"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Required Tier</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a tier" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="free">Free</SelectItem>
+                          <SelectItem value="tier1">Tier 1</SelectItem>
+                          <SelectItem value="tier2">Tier 2</SelectItem>
+                          <SelectItem value="premium">Premium</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

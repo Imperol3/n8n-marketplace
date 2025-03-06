@@ -7,10 +7,31 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role", { enum: ["admin", "user", "viewer"] }).notNull().default("viewer"),
+  preferences: jsonb("preferences").$type<{
+    interests: string[];
+    tier: "free" | "tier1" | "tier2" | "premium";
+  }>().notNull().default({
+    interests: [],
+    tier: "free"
+  }),
 });
 
 // Define workflow status as a type
 export type WorkflowStatus = "draft" | "in_progress" | "needs_edit" | "published";
+
+// Common workflow categories
+export const WORKFLOW_CATEGORIES = [
+  "Sales",
+  "Marketing",
+  "AI Agents",
+  "Productivity",
+  "Lead Generation",
+  "Email Management",
+  "SEO",
+  "Social Media",
+  "Analytics",
+  "Customer Service",
+] as const;
 
 export const workflows = pgTable("workflows", {
   id: serial("id").primaryKey(),
@@ -24,13 +45,14 @@ export const workflows = pgTable("workflows", {
     enum: ["draft", "in_progress", "needs_edit", "published"]
   }).notNull().default("draft"),
   metadata: jsonb("metadata").$type<{
-    category: string;
+    categories: string[];
     tags: string[];
     previewUrl?: string;
+    requiredTier: "free" | "tier1" | "tier2" | "premium";
   }>().notNull().default({
-    category: '',
+    categories: [],
     tags: [],
-    previewUrl: undefined
+    requiredTier: "free"
   }),
 });
 
@@ -38,6 +60,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   role: true,
+  preferences: true,
 });
 
 export const insertWorkflowSchema = createInsertSchema(workflows).pick({
