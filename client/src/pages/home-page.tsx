@@ -18,6 +18,7 @@ export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
+    select: (data) => data.filter(w => w.status === "published"),
   });
 
   // Add image error handling function

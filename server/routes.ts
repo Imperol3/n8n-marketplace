@@ -231,6 +231,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all users (admin only)
+  app.get("/api/users", isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getUsers();
+      res.json(users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Update user (admin only)
+  app.patch("/api/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { role, preferences } = req.body;
+
+      const user = await storage.updateUser(userId, {
+        role,
+        preferences
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(400).json({
+        message: "Failed to update user",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Delete user (admin only)
+  app.delete("/api/users/:id", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const success = await storage.deleteUser(userId);
+
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(400).json({
+        message: "Failed to delete user",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Delete workflow (admin only)
+  app.delete("/api/workflows/:id", isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteWorkflow(parseInt(req.params.id));
+
+      if (!success) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting workflow:', error);
+      res.status(400).json({
+        message: "Failed to delete workflow",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
