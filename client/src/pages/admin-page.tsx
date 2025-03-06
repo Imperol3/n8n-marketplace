@@ -139,6 +139,40 @@ const UserDialog = ({ isOpen, onClose, editUser }: { isOpen: boolean; onClose: (
   const { toast } = useToast();
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
 
+  const { data: tiers = [] } = useQuery<Tier[]>({
+    queryKey: ["/api/tiers"],
+  });
+
+  const userForm = useForm<z.infer<typeof userSchema>>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      username: "",
+      email: "",
+      password: "",
+      role: "viewer",
+      tier: tiers[0]?.name || "free",
+    },
+  });
+
+  React.useEffect(() => {
+    if (editUser) {
+      userForm.reset({
+        username: editUser.username,
+        email: editUser.email,
+        role: editUser.role,
+        tier: editUser.preferences.tier,
+      });
+    } else {
+      userForm.reset({
+        username: "",
+        email: "",
+        password: "",
+        role: "viewer",
+        tier: tiers[0]?.name || "free",
+      });
+    }
+  }, [editUser, tiers]);
+
   const createUser = useMutation({
     mutationFn: async (data: z.infer<typeof userSchema>) => {
       const res = await fetch('/api/v1/users', {
@@ -206,72 +240,89 @@ const UserDialog = ({ isOpen, onClose, editUser }: { isOpen: boolean; onClose: (
     },
   });
 
-  const userActions = (
-    <div className="space-x-2">
-      <Button variant="outline" onClick={() => setIsResetPasswordOpen(true)}>
-        Reset Password
-      </Button>
-    </div>
-  );
+  const updateUserAccess = useMutation({
+    mutationFn: async ({ userId, role, tier }: { userId: number; role: string; tier: string }) => {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role,
+          preferences: {
+            tier,
+            interests: []
+          }
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      onClose();
+      toast({
+        title: "Success",
+        description: "User access updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <>
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">User Management</h2>
-        <Dialog open={isOpen} onOpenChange={onClose}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
-              setEditUser(null);
-              userForm.reset();
-            }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editUser ? 'Edit User' : 'Add New User'}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...userForm}>
-              <form onSubmit={userForm.handleSubmit((data) => {
-                if (editUser) {
-                  updateUserAccess.mutate({
-                    userId: editUser.id,
-                    role: data.role,
-                    tier: data.tier
-                  });
-                } else {
-                  createUser.mutate(data);
-                }
-              })} className="space-y-4">
-                <FormField
-                  control={userForm.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={userForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editUser ? 'Edit User' : 'Add New User'}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...userForm}>
+            <form onSubmit={userForm.handleSubmit((data) => {
+              if (editUser) {
+                updateUserAccess.mutate({
+                  userId: editUser.id,
+                  role: data.role,
+                  tier: data.tier
+                });
+              } else {
+                createUser.mutate(data);
+              }
+            })} className="space-y-4">
+              <FormField
+                control={userForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={userForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {!editUser && (
                 <FormField
                   control={userForm.control}
                   name="password"
@@ -290,64 +341,64 @@ const UserDialog = ({ isOpen, onClose, editUser }: { isOpen: boolean; onClose: (
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={userForm.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a role" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="viewer">Viewer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={userForm.control}
-                  name="tier"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tier</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a tier" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tiers.map((tier) => (
-                            <SelectItem key={tier.id} value={tier.name}>
-                              {tier.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={createUser.isPending || updateUserAccess.isPending}
-                >
-                  {editUser ? 'Update User' : 'Create User'}
-                </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
+              )}
+              <FormField
+                control={userForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={userForm.control}
+                name="tier"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tier</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a tier" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {tiers.map((tier) => (
+                          <SelectItem key={tier.id} value={tier.name}>
+                            {tier.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={createUser.isPending || updateUserAccess.isPending}
+              >
+                {editUser ? 'Update User' : 'Create User'}
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <PasswordResetDialog
         isOpen={isResetPasswordOpen}
@@ -366,7 +417,6 @@ export default function AdminPage() {
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("workflows");
-  const [showPassword, setShowPassword] = useState<Record<number, boolean>>({});
   const [isTierDialogOpen, setIsTierDialogOpen] = useState(false);
   const [editTier, setEditTier] = useState<Tier | null>(null);
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
@@ -419,7 +469,6 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsUserDialogOpen(false);
       setEditUser(null);
-      userForm.reset();
       toast({
         title: "Success",
         description: "User access updated successfully",
@@ -641,84 +690,6 @@ export default function AdminPage() {
     selectedStatus === 'all' ? true : workflow.status === selectedStatus
   );
 
-  const userForm = useForm<z.infer<typeof userSchema>>({
-    resolver: zodResolver(userSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-      role: "viewer",
-      tier: tiers[0]?.name || "free", // Default to first tier or "free"
-    },
-  });
-
-  const createUserMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof userSchema>) => {
-      const res = await fetch('/api/v1/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to create user');
-      }
-
-      return await res.json();
-    },
-    onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      setIsUserDialogOpen(false);
-      userForm.reset();
-
-      if (response.data.temporaryPassword) {
-        navigator.clipboard.writeText(response.data.temporaryPassword);
-        toast({
-          title: "User Created Successfully",
-          description: (
-            <div className="space-y-2">
-              <p>User created! Temporary password has been copied to clipboard:</p>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded">
-                <code>{response.data.temporaryPassword}</code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(response.data.temporaryPassword);
-                    toast({
-                      title: "Copied!",
-                      description: "Password copied to clipboard",
-                    });
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                The user will be prompted to change their password on first login.
-              </p>
-            </div>
-          ),
-          duration: 10000,
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "User created successfully with provided password",
-        });
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error creating user",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   const { data: tiersData = [] } = useQuery<Tier[]>({
     queryKey: ["/api/tiers"],
@@ -1049,7 +1020,7 @@ export default function AdminPage() {
 
                   <div className="mt-auto pt-4 border-t">
                     <div className="flex items-center justify-between">
-                      <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
+                      <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status|| 'draft']}`}>
                         {getStatusDisplay(workflow.status)}
                       </span>
                       <Select
@@ -1082,8 +1053,20 @@ export default function AdminPage() {
         <TabsContent value="users" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">User Management</h2>
-            <UserDialog isOpen={isUserDialogOpen} onClose={() => setIsUserDialogOpen(false)} editUser={editUser} />
+            <Button onClick={() => setIsUserDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
           </div>
+
+          <UserDialog
+            isOpen={isUserDialogOpen}
+            onClose={() => {
+              setIsUserDialogOpen(false);
+              setEditUser(null);
+            }}
+            editUser={editUser}
+          />
 
           <Table>
             <TableHeader>
@@ -1155,12 +1138,6 @@ export default function AdminPage() {
                         size="sm"
                         onClick={() => {
                           setEditUser(user);
-                          userForm.reset({
-                            username: user.username,
-                            email: user.email,
-                            role: user.role,
-                            tier: user.preferences.tier
-                          });
                           setIsUserDialogOpen(true);
                         }}
                       >
@@ -1169,11 +1146,11 @@ export default function AdminPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={()=> {
-                        if (confirm('Are you sure you want to delete this user?')) {
-                          deleteUser.mutate(user.id);
-                        }
-                      }}
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this user?')) {
+                            deleteUser.mutate(user.id);
+                          }
+                        }}
                       >
                         <Trash className="h-4 w-4" />
                       </Button>
