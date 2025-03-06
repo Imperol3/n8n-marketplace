@@ -74,8 +74,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create workflow (admin only)
   app.post("/api/workflows", isAdmin, upload.fields([
     { name: 'workflow-file', maxCount: 1 },
-    { name: 'featuredImage', maxCount: 1 },
-    { name: 'extraImages', maxCount: 5 }
   ]), async (req, res) => {
     try {
       // Debug logging
@@ -95,23 +93,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         files['workflow-file'][0].originalname
       );
 
-      // Save any images if provided
-      const featuredImagePath = files.featuredImage 
-        ? await fileStorage.saveFile(files.featuredImage[0].buffer, files.featuredImage[0].originalname)
-        : null;
-
-      const extraImagePaths = files.extraImages 
-        ? await Promise.all(files.extraImages.map(f => fileStorage.saveFile(f.buffer, f.originalname)))
-        : null;
-
       const workflow = await storage.createWorkflow({
         title: req.body.title,
         description: req.body.description,
         filePath: workflowPath,
-        featuredImage: featuredImagePath,
-        extraImages: extraImagePaths,
+        featuredImage: null,
+        extraImages: null,
         metadata: {
-          category: req.body.category || '',
+          category: '',
           tags: [],
           previewUrl: null
         },

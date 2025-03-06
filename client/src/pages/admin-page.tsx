@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Workflow } from "@shared/schema";
-import { useAuth } from "@/hooks/use-auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -30,11 +29,6 @@ import {
 const workflowSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  metadata: z.object({
-    category: z.string(),
-    tags: z.array(z.string()).default([]),
-    previewUrl: z.string().url().optional().nullable(),
-  }),
 });
 
 export default function AdminPage() {
@@ -49,11 +43,6 @@ export default function AdminPage() {
     defaultValues: {
       title: "",
       description: "",
-      metadata: {
-        category: "",
-        tags: [],
-        previewUrl: "",
-      },
     },
   });
 
@@ -80,46 +69,23 @@ export default function AdminPage() {
     },
   });
 
-  const deleteWorkflow = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/workflows/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
-      toast({
-        title: "Success",
-        description: "Workflow deleted successfully",
-      });
-    },
-  });
-
   const onSubmit = async (data: z.infer<typeof workflowSchema>) => {
     const formData = new FormData();
     formData.append("title", data.title);
     formData.append("description", data.description);
-    formData.append("category", data.metadata.category);
 
     // Handle workflow file
     const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
     if (fileInput?.files?.[0]) {
-      console.log('Appending workflow file:', fileInput.files[0].name);
+      console.log('Uploading workflow file:', fileInput.files[0].name);
       formData.append("workflow-file", fileInput.files[0]);
     } else {
-      console.log('No workflow file selected');
-    }
-
-    // Handle featured image
-    const featuredImageInput = document.querySelector<HTMLInputElement>('#featured-image');
-    if (featuredImageInput?.files?.[0]) {
-      formData.append("featuredImage", featuredImageInput.files[0]);
-    }
-
-    // Handle extra images
-    const extraImagesInput = document.querySelector<HTMLInputElement>('#extra-images');
-    if (extraImagesInput?.files) {
-      Array.from(extraImagesInput.files).forEach(file => {
-        formData.append("extraImages", file);
+      toast({
+        title: "Error",
+        description: "Please select a workflow file",
+        variant: "destructive",
       });
+      return;
     }
 
     try {
@@ -142,7 +108,7 @@ export default function AdminPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Create New Workflow</DialogTitle>
+              <DialogTitle>Upload New Workflow</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -172,62 +138,15 @@ export default function AdminPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="metadata.category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="metadata.previewUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Preview URL</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="space-y-4">
-                  <div>
-                    <FormLabel htmlFor="featured-image">Featured Image</FormLabel>
-                    <Input
-                      id="featured-image"
-                      type="file"
-                      accept="image/*"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <FormLabel htmlFor="extra-images">Additional Images</FormLabel>
-                    <Input
-                      id="extra-images"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <FormLabel htmlFor="workflow-file">Workflow File (JSON)</FormLabel>
-                    <Input
-                      id="workflow-file"
-                      type="file"
-                      accept=".json"
-                      className="mt-1"
-                      required
-                    />
-                  </div>
+                <div>
+                  <FormLabel htmlFor="workflow-file">Workflow File (JSON)</FormLabel>
+                  <Input
+                    id="workflow-file"
+                    type="file"
+                    accept=".json"
+                    className="mt-1"
+                    required
+                  />
                 </div>
                 <Button
                   type="submit"
@@ -248,25 +167,11 @@ export default function AdminPage() {
             key={workflow.id}
             className="flex items-center justify-between p-4 border rounded-lg"
           >
-            <div className="flex items-center gap-4">
-              {workflow.featuredImage && (
-                <img
-                  src={workflow.featuredImage}
-                  alt={workflow.title}
-                  className="w-16 h-16 object-cover rounded"
-                />
-              )}
-              {!workflow.featuredImage && (
-                <div className="w-16 h-16 bg-muted flex items-center justify-center rounded">
-                  <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                </div>
-              )}
-              <div>
-                <h3 className="font-medium">{workflow.title}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {workflow.description}
-                </p>
-              </div>
+            <div>
+              <h3 className="font-medium">{workflow.title}</h3>
+              <p className="text-sm text-muted-foreground">
+                {workflow.description}
+              </p>
             </div>
             <Button
               variant="destructive"
