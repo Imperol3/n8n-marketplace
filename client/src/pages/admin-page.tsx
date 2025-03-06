@@ -54,11 +54,12 @@ const workflowSchema = z.object({
   requiredTier: z.string(), // Changed to string to handle dynamic tier names
 });
 
+// Update userSchema to use dynamic tier validation
 const userSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   role: z.enum(["admin", "user", "viewer"]),
-  tier: z.enum(["free", "tier1", "tier2", "premium"]),
+  tier: z.string().min(1, "Please select a tier"), // Changed from enum to string
 });
 
 const getStatusDisplay = (status: WorkflowStatus | undefined) => {
@@ -82,6 +83,11 @@ export default function AdminPage() {
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("workflows");
+
+  // Fetch tiers first
+  const { data: tiers = [] } = useQuery<Tier[]>({
+    queryKey: ["/api/tiers"],
+  });
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -279,7 +285,7 @@ export default function AdminPage() {
         formData.append("workflow-file", workflowFile);
       }
       if (featuredImage) {
-        formData.append("featured-image", featuredImage);
+        formData.append("featuredImage", featuredImage);
       }
       if (extraImages && extraImages.length > 0) {
         Array.from(extraImages).forEach(file => {
@@ -332,13 +338,14 @@ export default function AdminPage() {
     selectedStatus === 'all' ? true : workflow.status === selectedStatus
   );
 
+  // Update user form with dynamic tier options
   const userForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: {
       username: "",
       email: "",
       role: "viewer",
-      tier: "free",
+      tier: tiers[0]?.name || "free", // Default to first tier or "free"
     },
   });
 
@@ -384,7 +391,7 @@ export default function AdminPage() {
     },
   });
 
-  const { data: tiers = [] } = useQuery<Tier[]>({
+  const { data: tiersData = [] } = useQuery<Tier[]>({
     queryKey: ["/api/tiers"],
   });
 
@@ -804,10 +811,11 @@ export default function AdminPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="free">Free</SelectItem>
-                              <SelectItem value="tier1">Tier 1</SelectItem>
-                              <SelectItem value="tier2">Tier 2</SelectItem>
-                              <SelectItem value="premium">Premium</SelectItem>
+                              {tiers.map((tier) => (
+                                <SelectItem key={tier.id} value={tier.name}>
+                                  {tier.name}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -876,10 +884,11 @@ export default function AdminPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="free">Free</SelectItem>
-                        <SelectItem value="tier1">Tier 1</SelectItem>
-                        <SelectItem value="tier2">Tier 2</SelectItem>
-                        <SelectItem value="premium">Premium</SelectItem>
+                        {tiers.map((tier) => (
+                          <SelectItem key={tier.id} value={tier.name}>
+                            {tier.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -951,7 +960,7 @@ export default function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tiers.map((tier) => (
+              {tiersData.map((tier) => (
                 <TableRow key={tier.id}>
                   <TableCell>{tier.name}</TableCell>
                   <TableCell>{tier.description}</TableCell>
