@@ -45,7 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add these routes after setupAuth(app);
 
-  // API endpoint for creating users
+  // Update the user creation API endpoint to use the auth system
   app.post("/api/v1/users", async (req, res) => {
     try {
       // Validate required fields
@@ -58,14 +58,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Check if user exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Username already exists"
+        });
+      }
+
       // Generate password if not provided
       const userPassword = password || Math.random().toString(36).slice(-8);
 
-      // Create user - Assuming hashPassword function exists elsewhere
+      // Create user using the storage system which handles password hashing
       const user = await storage.createUser({
         username,
         email,
-        password: await hashPassword(userPassword),
+        password: userPassword, // Storage system will hash this
         role,
         preferences: {
           tier,
