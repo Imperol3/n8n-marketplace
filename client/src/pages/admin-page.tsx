@@ -32,7 +32,7 @@ const workflowSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   metadata: z.object({
     category: z.string(),
-    tags: z.array(z.string()),
+    tags: z.array(z.string()).default([]),
     previewUrl: z.string().url().optional(),
   }),
 });

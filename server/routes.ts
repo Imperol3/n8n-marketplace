@@ -64,16 +64,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
       const parsed = insertWorkflowSchema.parse({
-        ...req.body,
-        filePath: files.file ? `/uploads/${files.file[0].originalname}` : undefined,
-        featuredImage: files.featuredImage ? `/uploads/${files.featuredImage[0].originalname}` : undefined,
-        extraImages: files.extraImages ? files.extraImages.map(f => `/uploads/${f.originalname}`) : [],
-        metadata: JSON.parse(req.body.metadata || '{}')
+        title: req.body.title,
+        description: req.body.description,
+        filePath: files?.file ? `/uploads/${files.file[0].originalname}` : null,
+        featuredImage: files?.featuredImage ? `/uploads/${files.featuredImage[0].originalname}` : null,
+        extraImages: files?.extraImages ? files.extraImages.map(f => `/uploads/${f.originalname}`) : null,
+        metadata: JSON.parse(req.body.metadata || '{}'),
+        createdAt: new Date().toISOString()
       });
 
       const workflow = await storage.createWorkflow(parsed);
       res.status(201).json(workflow);
     } catch (error) {
+      console.error('Workflow creation error:', error);
       res.status(400).json({ message: "Invalid workflow data" });
     }
   });
