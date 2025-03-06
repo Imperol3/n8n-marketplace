@@ -37,12 +37,33 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export { hashPassword }; 
 
+async function initializeAdmin() {
+  try {
+    const existingAdmin = await storage.getUserByUsername("admin");
+    if (!existingAdmin) {
+      console.log("Creating admin user...");
+      await storage.createUser({
+        username: "admin",
+        password: await hashPassword("admin123"),
+        role: "admin",
+      });
+      console.log("Admin user created successfully");
+    }
+  } catch (error) {
+    console.error("Error initializing admin user:", error);
+  }
+}
+
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || 'dev-secret-key',
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
+    cookie: {
+      secure: false, // Set to true in production with HTTPS
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
   };
 
   app.set("trust proxy", 1);
@@ -50,27 +71,47 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Initialize admin user
+  initializeAdmin();
+
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        console.log(`Login attempt for user: ${username}`);
         const user = await storage.getUserByUsername(username);
+        console.log("User found:", !!user);
+
         if (!user || !(await comparePasswords(password, user.password))) {
+          console.log("Login failed: Invalid credentials");
           return done(null, false);
         } else {
+          console.log("Login successful");
           return done(null, user);
         }
       } catch (error) {
+        console.error("Login error:", error);
         return done(error);
       }
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    console.log("Serializing user:", user.id);
+    done(null, user.id);
+  });
+
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log("Deserializing user:", id);
       const user = await storage.getUser(id);
+      if (!user) {
+        console.log("User not found during deserialization");
+        return done(null, false);
+      }
+      console.log("User deserialized successfully");
       done(null, user);
     } catch (error) {
+      console.error("Deserialization error:", error);
       done(error);
     }
   });
@@ -97,8 +138,17 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) return next(err);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.status(200).json(user);
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -109,6 +159,8 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
+    console.log("GET /api/user - isAuthenticated:", req.isAuthenticated());
+    console.log("Current user:", req.user);
     if (!req.isAuthenticated()) return res.sendStatus(401);
     res.json(req.user);
   });

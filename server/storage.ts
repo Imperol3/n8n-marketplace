@@ -58,14 +58,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkflow(insertWorkflow: InsertWorkflow): Promise<Workflow> {
-    const [workflow] = await db.insert(workflows).values(insertWorkflow).returning();
+    const [workflow] = await db.insert(workflows).values({
+      ...insertWorkflow,
+      metadata: {
+        category: '',
+        tags: [],
+        previewUrl: undefined
+      }
+    }).returning();
     return workflow;
   }
 
   async updateWorkflow(id: number, update: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
     const [workflow] = await db
       .update(workflows)
-      .set(update)
+      .set({
+        ...update,
+        metadata: {
+          category: '',
+          tags: [],
+          previewUrl: undefined
+        }
+      })
       .where(eq(workflows.id, id))
       .returning();
     return workflow;
