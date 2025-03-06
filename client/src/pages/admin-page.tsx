@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +28,8 @@ import {
 } from "@/components/ui/form";
 
 const workflowSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(10),
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
   metadata: z.object({
     category: z.string(),
     tags: z.array(z.string()),
@@ -65,6 +65,7 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
       setIsOpen(false);
+      form.reset();
       toast({
         title: "Success",
         description: "Workflow created successfully",
@@ -98,6 +99,21 @@ export default function AdminPage() {
     formData.append("description", data.description);
     formData.append("metadata", JSON.stringify(data.metadata));
 
+    // Handle featured image
+    const featuredImageInput = document.querySelector<HTMLInputElement>('#featured-image');
+    if (featuredImageInput?.files?.[0]) {
+      formData.append("featuredImage", featuredImageInput.files[0]);
+    }
+
+    // Handle extra images
+    const extraImagesInput = document.querySelector<HTMLInputElement>('#extra-images');
+    if (extraImagesInput?.files) {
+      Array.from(extraImagesInput.files).forEach(file => {
+        formData.append("extraImages", file);
+      });
+    }
+
+    // Handle workflow file
     const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
     if (fileInput?.files?.[0]) {
       formData.append("file", fileInput.files[0]);
@@ -175,13 +191,35 @@ export default function AdminPage() {
                     </FormItem>
                   )}
                 />
-                <div>
-                  <FormLabel htmlFor="workflow-file">Workflow File</FormLabel>
-                  <Input
-                    id="workflow-file"
-                    type="file"
-                    accept=".json,.yaml,.yml"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <FormLabel htmlFor="featured-image">Featured Image</FormLabel>
+                    <Input
+                      id="featured-image"
+                      type="file"
+                      accept="image/*"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <FormLabel htmlFor="extra-images">Additional Images</FormLabel>
+                    <Input
+                      id="extra-images"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <FormLabel htmlFor="workflow-file">Workflow File</FormLabel>
+                    <Input
+                      id="workflow-file"
+                      type="file"
+                      accept=".json,.yaml,.yml"
+                      className="mt-1"
+                    />
+                  </div>
                 </div>
                 <Button
                   type="submit"
@@ -202,11 +240,25 @@ export default function AdminPage() {
             key={workflow.id}
             className="flex items-center justify-between p-4 border rounded-lg"
           >
-            <div>
-              <h3 className="font-medium">{workflow.title}</h3>
-              <p className="text-sm text-muted-foreground">
-                {workflow.description}
-              </p>
+            <div className="flex items-center gap-4">
+              {workflow.featuredImage && (
+                <img 
+                  src={workflow.featuredImage} 
+                  alt={workflow.title}
+                  className="w-16 h-16 object-cover rounded"
+                />
+              )}
+              {!workflow.featuredImage && (
+                <div className="w-16 h-16 bg-muted flex items-center justify-center rounded">
+                  <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <h3 className="font-medium">{workflow.title}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {workflow.description}
+                </p>
+              </div>
             </div>
             <Button
               variant="destructive"

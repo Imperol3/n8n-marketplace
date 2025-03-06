@@ -14,6 +14,8 @@ export const workflows = pgTable("workflows", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   filePath: text("file_path"),
+  featuredImage: text("featured_image"),
+  extraImages: text("extra_images").array(),
   metadata: jsonb("metadata").$type<{
     category: string;
     tags: string[];
@@ -32,6 +34,8 @@ export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   title: true,
   description: true,
   filePath: true,
+  featuredImage: true,
+  extraImages: true,
   metadata: true,
 });
 

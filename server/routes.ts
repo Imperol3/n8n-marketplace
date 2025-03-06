@@ -12,7 +12,7 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['.json', '.yaml', '.yml'];
+    const allowedTypes = ['.json', '.yaml', '.yml', '.jpg', '.jpeg', '.png', '.gif'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedTypes.includes(ext)) {
       cb(null, true);
@@ -55,14 +55,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create workflow (admin only)
-  app.post("/api/workflows", isAdmin, upload.single('file'), async (req, res) => {
+  app.post("/api/workflows", isAdmin, upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'featuredImage', maxCount: 1 },
+    { name: 'extraImages', maxCount: 5 }
+  ]), async (req, res) => {
     try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
       const parsed = insertWorkflowSchema.parse({
         ...req.body,
-        filePath: req.file ? `/uploads/${req.file.originalname}` : undefined,
+        filePath: files.file ? `/uploads/${files.file[0].originalname}` : undefined,
+        featuredImage: files.featuredImage ? `/uploads/${files.featuredImage[0].originalname}` : undefined,
+        extraImages: files.extraImages ? files.extraImages.map(f => `/uploads/${f.originalname}`) : [],
         metadata: JSON.parse(req.body.metadata || '{}')
       });
-      
+
       const workflow = await storage.createWorkflow(parsed);
       res.status(201).json(workflow);
     } catch (error) {
@@ -101,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!workflow || !workflow.filePath) {
       return res.status(404).json({ message: "Workflow file not found" });
     }
-    
+
     // In a real app, we would stream the file from storage
     res.download(workflow.filePath);
   });

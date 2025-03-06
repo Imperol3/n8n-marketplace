@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Workflow } from "@shared/schema";
-import { Download, ExternalLink } from "lucide-react";
+import { Download, ExternalLink, Image as ImageIcon } from "lucide-react";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -25,6 +25,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <Card key={i} className="animate-pulse">
+              <div className="aspect-video bg-muted" />
               <CardHeader className="space-y-2">
                 <div className="h-4 bg-muted rounded w-2/3"></div>
                 <div className="h-3 bg-muted rounded w-1/2"></div>
@@ -60,7 +61,20 @@ export default function HomePage() {
       <main className="container mx-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {workflows?.map((workflow) => (
-            <Card key={workflow.id}>
+            <Card key={workflow.id} className="overflow-hidden">
+              <div className="aspect-video relative">
+                {workflow.featuredImage ? (
+                  <img
+                    src={workflow.featuredImage}
+                    alt={workflow.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
               <CardHeader>
                 <CardTitle>{workflow.title}</CardTitle>
                 <CardDescription>
@@ -80,6 +94,18 @@ export default function HomePage() {
                       >
                         {tag}
                       </span>
+                    ))}
+                  </div>
+                )}
+                {workflow.extraImages && workflow.extraImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    {workflow.extraImages.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`${workflow.title} preview ${index + 1}`}
+                        className="w-full h-20 object-cover rounded"
+                      />
                     ))}
                   </div>
                 )}
