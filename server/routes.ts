@@ -21,20 +21,29 @@ const upload = multer({
 });
 
 function isAdmin(req: Request, res: Response, next: Function) {
- if (req.user?.role !== 'admin') {
-   return res.status(403).json({ message: 'Admin access required' });
- }
- next();
+  console.log('Admin check - user:', req.user); // Add logging
+  if (!req.user || req.user?.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  next();
 }
 
 function isUser(req: Request, res: Response, next: Function) {
- if (!['admin', 'user'].includes(req.user?.role || '')) {
-   return res.status(403).json({ message: 'User access required' });
- }
- next();
+  console.log('User check - user:', req.user); // Add logging
+  if (!req.user || !['admin', 'user'].includes(req.user?.role || '')) {
+    return res.status(403).json({ message: 'User access required' });
+  }
+  next();
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Log session configuration
+  app.use((req, res, next) => {
+    console.log('Session user:', req.user);
+    console.log('Is authenticated:', req.isAuthenticated());
+    next();
+  });
+
   setupAuth(app);
 
   // Public route - Get all workflows
@@ -148,7 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(workflow);
     } catch (error) {
       console.error('Error updating workflow status:', error);
-      res.status(400).json({ 
+      res.status(400).json({
         message: "Failed to update workflow status",
         error: error instanceof Error ? error.message : String(error)
       });

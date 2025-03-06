@@ -44,8 +44,13 @@ async function initializeAdmin() {
       console.log("Creating admin user...");
       await storage.createUser({
         username: "admin",
+        email: "admin@example.com",
         password: await hashPassword("admin123"),
         role: "admin",
+        preferences: {
+          interests: [],
+          tier: "premium"
+        }
       });
       console.log("Admin user created successfully");
     }
@@ -55,6 +60,9 @@ async function initializeAdmin() {
 }
 
 export function setupAuth(app: Express) {
+  // Initialize admin user first
+  initializeAdmin().catch(console.error);
+
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || 'dev-secret-key',
     resave: false,
@@ -62,17 +70,23 @@ export function setupAuth(app: Express) {
     store: storage.sessionStore,
     cookie: {
       secure: false, // Set to true in production with HTTPS
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      httpOnly: true,
+      sameSite: 'lax'
     }
   };
 
-  app.set("trust proxy", 1);
+  // Configure session for production
+  if (app.get('env') === 'production') {
+    app.set('trust proxy', 1);
+    if (sessionSettings.cookie) {
+      sessionSettings.cookie.secure = true;
+    }
+  }
+
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
-
-  // Initialize admin user
-  initializeAdmin();
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
