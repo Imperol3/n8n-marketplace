@@ -17,11 +17,6 @@ export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const { data: workflows = [], isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
-    queryFn: async ({ queryKey }) => {
-      const res = await fetch(queryKey[0] as string);
-      if (!res.ok) throw new Error('Failed to fetch workflows');
-      return res.json();
-    }
   });
 
   if (isLoading) {
@@ -50,27 +45,25 @@ export default function HomePage() {
       <header className="border-b">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Workflow Marketplace</h1>
-          <div className="flex items-center gap-4">
-            {!user ? (
-              <Link href="/auth">
-                <Button>Login / Register</Button>
-              </Link>
-            ) : (
-              <>
-                {user.role === "admin" && (
-                  <Link href="/admin">
-                    <Button variant="outline">Admin Dashboard</Button>
-                  </Link>
-                )}
-                <Button 
-                  variant="destructive" 
-                  onClick={() => logoutMutation.mutate()}
-                >
-                  Logout
-                </Button>
-              </>
-            )}
-          </div>
+          {!user ? (
+            <Link href="/auth">
+              <Button variant="outline">Sign in</Button>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-4">
+              {user.role === "admin" && (
+                <Link href="/admin">
+                  <Button variant="outline">Admin Dashboard</Button>
+                </Link>
+              )}
+              <Button 
+                variant="destructive" 
+                onClick={() => logoutMutation.mutate()}
+              >
+                Logout
+              </Button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -140,9 +133,9 @@ export default function HomePage() {
                     </a>
                   </Button>
                 ) : (
-                  <Button size="sm" asChild className="ml-auto" variant="outline">
+                  <Button size="sm" asChild className="ml-auto" variant="secondary">
                     <Link href="/auth">
-                      Login to Download
+                      Sign in to Download
                     </Link>
                   </Button>
                 )}
