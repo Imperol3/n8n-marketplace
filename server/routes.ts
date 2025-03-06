@@ -2,7 +2,6 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertWorkflowSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import express from "express";
@@ -49,25 +48,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Create workflow (admin only)
-  app.post("/api/workflows", isAdmin, upload.fields([
-    { name: 'workflow-file', maxCount: 1 }
-  ]), async (req, res) => {
+  app.post("/api/workflows", isAdmin, upload.single('workflow-file'), async (req, res) => {
     try {
       // Debug logging
       console.log('Upload request received');
-      console.log('Files:', req.files);
+      console.log('Files:', req.file);
       console.log('Body:', req.body);
 
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-      if (!files || !files['workflow-file']) {
+      if (!req.file) {
         return res.status(400).json({ message: "No workflow file provided" });
       }
 
       // Save the workflow file
       const workflowPath = await fileStorage.saveFile(
-        files['workflow-file'][0].buffer,
-        files['workflow-file'][0].originalname
+        req.file.buffer,
+        req.file.originalname
       );
 
       const workflow = await storage.createWorkflow({

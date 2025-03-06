@@ -173,14 +173,6 @@ export default function AdminPage() {
                 {workflow.description}
               </p>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => deleteWorkflow.mutate(workflow.id)}
-              disabled={deleteWorkflow.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
           </div>
         ))}
       </div>
