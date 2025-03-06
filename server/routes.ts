@@ -14,12 +14,24 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['.json', '.yaml', '.yml', '.jpg', '.jpeg', '.png', '.gif'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type'));
+    // Accept only json files for workflow
+    if (file.fieldname === 'workflow-file') {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (ext === '.json') {
+        return cb(null, true);
+      }
+      cb(new Error('Only JSON files are allowed for workflows'));
+    }
+    // For images, accept common image formats
+    else if (['featuredImage', 'extraImages'].includes(file.fieldname)) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (['.jpg', '.jpeg', '.png', '.gif'].includes(ext)) {
+        return cb(null, true);
+      }
+      cb(new Error('Only jpg, jpeg, png, and gif files are allowed for images'));
+    }
+    else {
+      cb(new Error('Unexpected field'));
     }
   }
 });
@@ -61,21 +73,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create workflow (admin only)
   app.post("/api/workflows", isAdmin, upload.fields([
-    { name: 'file', maxCount: 1 },
+    { name: 'workflow-file', maxCount: 1 },
     { name: 'featuredImage', maxCount: 1 },
     { name: 'extraImages', maxCount: 5 }
   ]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      if (!files || !files.file) {
+      if (!files || !files['workflow-file']) {
         return res.status(400).json({ message: "No workflow file provided" });
       }
 
       // Save the workflow file
       const workflowPath = await fileStorage.saveFile(
-        files.file[0].buffer,
-        files.file[0].originalname
+        files['workflow-file'][0].buffer,
+        files['workflow-file'][0].originalname
       );
 
       // Save any images if provided

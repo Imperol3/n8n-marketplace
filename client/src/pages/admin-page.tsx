@@ -106,7 +106,7 @@ export default function AdminPage() {
     // Handle workflow file
     const fileInput = document.querySelector<HTMLInputElement>('#workflow-file');
     if (fileInput?.files?.[0]) {
-      formData.append("file", fileInput.files[0]);
+      formData.append("workflow-file", fileInput.files[0]);
     }
 
     // Handle featured image
@@ -220,11 +220,11 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <FormLabel htmlFor="workflow-file">Workflow File</FormLabel>
+                    <FormLabel htmlFor="workflow-file">Workflow File (JSON)</FormLabel>
                     <Input
                       id="workflow-file"
                       type="file"
-                      accept=".json,.yaml,.yml"
+                      accept=".json"
                       className="mt-1"
                     />
                   </div>
