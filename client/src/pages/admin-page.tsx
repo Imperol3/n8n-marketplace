@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, FileJson, Edit, Image, Trash, Eye, EyeOff } from "lucide-react";
+import { Plus, FileJson, Edit, Image, Trash, Eye, EyeOff, Copy } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -57,7 +57,7 @@ const workflowSchema = z.object({
 const userSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
   role: z.enum(["admin", "user", "viewer"]),
   tier: z.string().min(1, "Please select a tier"),
 });
@@ -371,7 +371,7 @@ export default function AdminPage() {
 
   const createUser = useMutation({
     mutationFn: async (data: z.infer<typeof userSchema>) => {
-      const res = await fetch('/api/register', {
+      const res = await fetch('/api/v1/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -390,16 +390,48 @@ export default function AdminPage() {
         throw new Error(error.message || 'Failed to create user');
       }
 
-      return res.json();
+      const response = await res.json();
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsUserDialogOpen(false);
       userForm.reset();
-      toast({
-        title: "Success",
-        description: "User created successfully",
-      });
+
+      // Show success message with password if it was auto-generated
+      if (response.data.temporaryPassword) {
+        navigator.clipboard.writeText(response.data.temporaryPassword);
+        toast({
+          title: "User Created Successfully",
+          description: (
+            <div className="space-y-2">
+              <p>Temporary password has been copied to clipboard:</p>
+              <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                <code>{response.data.temporaryPassword}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(response.data.temporaryPassword);
+                    toast({
+                      title: "Copied!",
+                      description: "Password copied to clipboard",
+                    });
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ),
+          duration: 10000,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "User created successfully with provided password",
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -833,21 +865,23 @@ export default function AdminPage() {
                         </FormItem>
                       )}
                     />
-                    {!editUser && (
-                      <FormField
-                        control={userForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <Input type="password" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
+                    <FormField
+                      control={userForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password (Optional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              {...field}
+                              placeholder="Leave empty for auto-generated password"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={userForm.control}
                       name="role"

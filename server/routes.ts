@@ -43,6 +43,60 @@ function isUser(req: Request, res: Response, next: Function) {
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
+  // Add these routes after setupAuth(app);
+
+  // API endpoint for creating users
+  app.post("/api/v1/users", async (req, res) => {
+    try {
+      // Validate required fields
+      const { username, email, role = "user", tier = "free", password } = req.body;
+
+      if (!username || !email) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Username and email are required" 
+        });
+      }
+
+      // Generate password if not provided
+      const userPassword = password || Math.random().toString(36).slice(-8);
+
+      // Create user - Assuming hashPassword function exists elsewhere
+      const user = await storage.createUser({
+        username,
+        email,
+        password: await hashPassword(userPassword),
+        role,
+        preferences: {
+          tier,
+          interests: []
+        }
+      });
+
+      // Return response with or without raw password based on whether it was auto-generated
+      res.status(201).json({
+        success: true,
+        message: "User created successfully",
+        data: {
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            preferences: user.preferences
+          },
+          ...(password ? {} : { temporaryPassword: userPassword })
+        }
+      });
+    } catch (error) {
+      console.error('Error creating user via API:', error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to create user"
+      });
+    }
+  });
+
   // Public route - Get all workflows
   app.get("/api/workflows", async (_req, res) => {
     try {
