@@ -38,6 +38,13 @@ const workflowSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
 });
 
+// Update the status display logic to handle undefined status and improve formatting
+const getStatusDisplay = (status: WorkflowStatus | undefined) => {
+  return status ? status.replace(/_/g, ' ').split(' ').map(word =>
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ') : 'Draft';
+};
+
 const statusColors = {
   draft: "bg-gray-200 text-gray-700",
   in_progress: "bg-blue-200 text-blue-700",
@@ -49,7 +56,6 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<WorkflowStatus | 'all'>('all');
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
 
   const { data: workflows } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
@@ -136,7 +142,7 @@ export default function AdminPage() {
     }
   };
 
-  const filteredWorkflows = workflows?.filter(workflow => 
+  const filteredWorkflows = workflows?.filter(workflow =>
     selectedStatus === 'all' ? true : workflow.status === selectedStatus
   );
 
@@ -146,8 +152,8 @@ export default function AdminPage() {
         <div>
           <h1 className="text-2xl font-bold">Workflow Management</h1>
           <div className="mt-2">
-            <Select 
-              value={selectedStatus} 
+            <Select
+              value={selectedStatus}
               onValueChange={(value) => setSelectedStatus(value as WorkflowStatus | 'all')}
             >
               <SelectTrigger className="w-[200px]">
@@ -242,16 +248,16 @@ export default function AdminPage() {
             </div>
 
             <div className="flex items-center justify-between mt-4">
-              <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status]}`}>
-                {workflow.status.replace('_', ' ').toUpperCase()}
+              <span className={`px-2 py-1 rounded text-sm ${statusColors[workflow.status || 'draft']}`}>
+                {getStatusDisplay(workflow.status)}
               </span>
               <div className="flex items-center gap-2">
                 <Select
-                  value={workflow.status}
-                  onValueChange={(value) => 
-                    updateWorkflowStatus.mutate({ 
-                      id: workflow.id, 
-                      status: value as WorkflowStatus 
+                  value={workflow.status || 'draft'}
+                  onValueChange={(value) =>
+                    updateWorkflowStatus.mutate({
+                      id: workflow.id,
+                      status: value as WorkflowStatus
                     })
                   }
                 >
@@ -265,10 +271,13 @@ export default function AdminPage() {
                     <SelectItem value="published">Published</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="icon"
-                  onClick={() => setSelectedWorkflow(workflow)}
+                  onClick={() => toast({
+                    title: "Coming Soon",
+                    description: "Workflow editing will be available soon",
+                  })}
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
