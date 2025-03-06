@@ -8,23 +8,14 @@ import express from "express";
 import { fileStorage } from "./storage/fileStorage";
 
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (_req, file, cb) => {
-    // Accept only json files for workflow
-    if (file.fieldname === 'workflow-file') {
-      const ext = path.extname(file.originalname).toLowerCase();
-      if (ext === '.json') {
-        return cb(null, true);
-      }
-      cb(new Error('Only JSON files are allowed for workflows'));
+  storage: multer.diskStorage({ // Changed to diskStorage for direct saving
+    destination: (req, file, cb) => {
+      cb(null, 'uploads/')
+    },
+    filename: (req, file, cb) => {
+      cb(null, file.originalname)
     }
-    else {
-      cb(new Error('Unexpected field'));
-    }
-  }
+  }),
 });
 
 function isAdmin(req: Request, res: Response, next: Function) {
@@ -59,9 +50,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No workflow file provided" });
       }
 
-      // Save the workflow file
+      // Save the workflow file - simplified
       const workflowPath = await fileStorage.saveFile(
-        req.file.buffer,
+        req.file.path, // Use req.file.path for direct file access
         req.file.originalname
       );
 
@@ -79,9 +70,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(workflow);
     } catch (error) {
       console.error('Workflow creation error:', error);
-      res.status(400).json({ 
-        message: "Invalid workflow data", 
-        error: error instanceof Error ? error.message : String(error) 
+      res.status(400).json({
+        message: "Invalid workflow data",
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   });
