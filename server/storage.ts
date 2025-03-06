@@ -1,6 +1,7 @@
 import { User, InsertUser, Workflow, InsertWorkflow } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import { hashPassword } from "./auth";
 
 const MemoryStore = createMemoryStore(session);
 
@@ -8,14 +9,14 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Workflow operations
   getWorkflows(): Promise<Workflow[]>;
   getWorkflow(id: number): Promise<Workflow | undefined>;
   createWorkflow(workflow: InsertWorkflow): Promise<Workflow>;
   updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined>;
   deleteWorkflow(id: number): Promise<boolean>;
-  
+
   sessionStore: session.SessionStore;
 }
 
@@ -36,9 +37,14 @@ export class MemStorage implements IStorage {
     });
 
     // Create default admin user
+    this.initializeAdmin();
+  }
+
+  private async initializeAdmin() {
+    const hashedPassword = await hashPassword("admin123");
     this.createUser({
       username: "admin",
-      password: "admin123", // This will be hashed by the auth system
+      password: hashedPassword,
       role: "admin"
     });
   }
@@ -82,7 +88,7 @@ export class MemStorage implements IStorage {
   async updateWorkflow(id: number, update: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
     const workflow = this.workflows.get(id);
     if (!workflow) return undefined;
-    
+
     const updated = { ...workflow, ...update };
     this.workflows.set(id, updated);
     return updated;
