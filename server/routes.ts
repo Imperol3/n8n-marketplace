@@ -7,15 +7,16 @@ import path from "path";
 import express from "express";
 import { fileStorage } from "./storage/fileStorage";
 
+// Simplified multer setup with direct disk storage
 const upload = multer({
-  storage: multer.diskStorage({ // Changed to diskStorage for direct saving
-    destination: (req, file, cb) => {
-      cb(null, 'uploads/')
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, path.join(process.cwd(), 'uploads'))
     },
-    filename: (req, file, cb) => {
+    filename: (_req, file, cb) => {
       cb(null, file.originalname)
     }
-  }),
+  })
 });
 
 function isAdmin(req: Request, res: Response, next: Function) {
@@ -38,28 +39,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-  // Create workflow (admin only)
+  // Create workflow (admin only) - Simplified to handle just the file upload
   app.post("/api/workflows", isAdmin, upload.single('workflow-file'), async (req, res) => {
     try {
-      // Debug logging
       console.log('Upload request received');
-      console.log('Files:', req.file);
+      console.log('File:', req.file);
       console.log('Body:', req.body);
 
       if (!req.file) {
         return res.status(400).json({ message: "No workflow file provided" });
       }
 
-      // Save the workflow file - simplified
-      const workflowPath = await fileStorage.saveFile(
-        req.file.path, // Use req.file.path for direct file access
-        req.file.originalname
-      );
-
       const workflow = await storage.createWorkflow({
         title: req.body.title,
         description: req.body.description,
-        filePath: workflowPath,
+        filePath: `/uploads/${req.file.filename}`,
         metadata: {
           category: '',
           tags: [],
