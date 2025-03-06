@@ -14,7 +14,7 @@ import { Workflow } from "@shared/schema";
 import { Download, ExternalLink, Image as ImageIcon } from "lucide-react";
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth(); // Assuming logoutMutation is added to useAuth
   const { data: workflows, isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
   });
@@ -51,7 +51,10 @@ export default function HomePage() {
                 <Button variant="outline">Admin Dashboard</Button>
               </Link>
             )}
-            <Button variant="destructive" onClick={() => {}}>
+            <Button 
+              variant="destructive" 
+              onClick={() => logoutMutation.mutate()}
+            >
               Logout
             </Button>
           </div>
