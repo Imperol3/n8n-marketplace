@@ -14,7 +14,7 @@ import { Workflow } from "@shared/schema";
 import { Download, ExternalLink, Image as ImageIcon } from "lucide-react";
 
 export default function HomePage() {
-  const { user, logoutMutation } = useAuth(); // Assuming logoutMutation is added to useAuth
+  const { user, logoutMutation } = useAuth();
   const { data: workflows, isLoading } = useQuery<Workflow[]>({
     queryKey: ["/api/workflows"],
   });
@@ -24,8 +24,8 @@ export default function HomePage() {
       <div className="container mx-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <div className="aspect-video bg-muted" />
+            <Card key={i} className="animate-pulse h-[480px]">
+              <div className="h-[200px] bg-muted" />
               <CardHeader className="space-y-2">
                 <div className="h-4 bg-muted rounded w-2/3"></div>
                 <div className="h-3 bg-muted rounded w-1/2"></div>
@@ -64,8 +64,8 @@ export default function HomePage() {
       <main className="container mx-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {workflows?.map((workflow) => (
-            <Card key={workflow.id} className="overflow-hidden">
-              <div className="aspect-video relative">
+            <Card key={workflow.id} className="flex flex-col h-[480px] overflow-hidden">
+              <div className="relative w-full h-[200px]">
                 {workflow.featuredImage ? (
                   <img
                     src={workflow.featuredImage}
@@ -79,13 +79,13 @@ export default function HomePage() {
                 )}
               </div>
               <CardHeader>
-                <CardTitle>{workflow.title}</CardTitle>
-                <CardDescription>
+                <CardTitle className="line-clamp-1">{workflow.title}</CardTitle>
+                <CardDescription className="line-clamp-1">
                   {workflow.metadata?.category}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
+              <CardContent className="flex-1 flex flex-col">
+                <p className="text-sm text-muted-foreground line-clamp-3 min-h-[4.5rem]">
                   {workflow.description}
                 </p>
                 {workflow.metadata?.tags && (
@@ -101,19 +101,12 @@ export default function HomePage() {
                   </div>
                 )}
                 {workflow.extraImages && workflow.extraImages.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-4">
-                    {workflow.extraImages.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`${workflow.title} preview ${index + 1}`}
-                        className="w-full h-20 object-cover rounded"
-                      />
-                    ))}
+                  <div className="mt-4 text-sm text-muted-foreground">
+                    +{workflow.extraImages.length} additional images
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="flex justify-between">
+              <CardFooter className="flex justify-between border-t pt-4">
                 {workflow.metadata?.previewUrl && (
                   <Button variant="outline" size="sm" asChild>
                     <a
@@ -127,7 +120,7 @@ export default function HomePage() {
                   </Button>
                 )}
                 {(user?.role === "admin" || user?.role === "user") && (
-                  <Button size="sm" asChild>
+                  <Button size="sm" asChild className="ml-auto">
                     <a href={`/api/workflows/${workflow.id}/download`}>
                       <Download className="h-4 w-4 mr-2" />
                       Download
