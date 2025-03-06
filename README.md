@@ -18,7 +18,6 @@ This platform allows users to:
   - Secure password hashing
   - Session management
   - Protected routes
-  - Email and username registration
 
 - ✅ Workflow Management
   - Upload JSON workflow files
@@ -26,14 +25,6 @@ This platform allows users to:
   - Status tracking (draft, in_progress, needs_edit, published)
   - Filter workflows by status
   - Admin dashboard for workflow management
-  - Categories and tags system
-  - Required tier levels for access
-
-- ✅ Public Access
-  - Browse workflows without login
-  - Detailed workflow views
-  - Preview workflow details
-  - Download for authenticated users
 
 - ✅ File Storage
   - Secure file uploads
@@ -46,25 +37,10 @@ This platform allows users to:
   - Session persistence
 
 ### Coming Soon
-- 🔄 User Preferences and Onboarding
-  - Interest-based workflow suggestions
-  - Personalized dashboard
-  - Category-based access control
-
+- 🔄 Workflow Editing Capabilities
 - 🔄 Advanced Search and Filtering
-  - Filter by categories and tags
-  - Search by workflow content
-  - Sort by popularity and relevance
-
 - 🔄 User Dashboard
-  - Saved workflows
-  - Download history
-  - Preference management
-
 - 🔄 Workflow Analytics
-  - Usage tracking
-  - Popular categories
-  - User engagement metrics
 
 ## Technical Stack
 
@@ -124,8 +100,6 @@ This platform allows users to:
 ### Frontend Pages
 - `/client/src/pages/admin-page.tsx`: Admin dashboard
 - `/client/src/pages/auth-page.tsx`: Authentication page
-- `/client/src/pages/workflow-details.tsx`: Detailed workflow view
-- `/client/src/pages/home-page.tsx`: Public workflow listing
 
 ## Database Schema
 
@@ -133,13 +107,8 @@ This platform allows users to:
 ```sql
 - id: serial (primary key)
 - username: text (unique)
-- email: text (unique)
 - password: text (hashed)
 - role: text (enum: admin, user, viewer)
-- preferences: jsonb {
-    interests: string[]
-    tier: "free" | "tier1" | "tier2" | "premium"
-  }
 ```
 
 ### Workflows Table
@@ -152,12 +121,7 @@ This platform allows users to:
 - extraImages: text[]
 - videoUrl: text
 - status: text (enum: draft, in_progress, needs_edit, published)
-- metadata: jsonb {
-    categories: string[]
-    tags: string[]
-    previewUrl?: string
-    requiredTier: "free" | "tier1" | "tier2" | "premium"
-  }
+- metadata: jsonb
 ```
 
 ## Environment Variables
@@ -167,4 +131,4 @@ Required environment variables:
 - Other PostgreSQL-related variables (`PGHOST`, `PGUSER`, etc.)
 
 ## Current Status
-The application is fully functional with core features implemented. Data persistence is working through PostgreSQL integration. Public access to workflows is enabled, with protected downloads for authenticated users. The platform supports categorization and tagging of workflows, with user tiers controlling access to premium content.
+The application is functional with core features implemented. Data persistence is working through PostgreSQL integration. The next phase of development will focus on enhancing the editing capabilities and user experience.

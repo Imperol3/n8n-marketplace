@@ -21,17 +21,17 @@ const upload = multer({
 });
 
 function isAdmin(req: Request, res: Response, next: Function) {
-  if (!req.isAuthenticated() || req.user?.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required' });
-  }
-  next();
+ if (req.user?.role !== 'admin') {
+   return res.status(403).json({ message: 'Admin access required' });
+ }
+ next();
 }
 
 function isUser(req: Request, res: Response, next: Function) {
-  if (!req.isAuthenticated() || !['admin', 'user'].includes(req.user?.role || '')) {
-    return res.status(403).json({ message: 'User access required' });
-  }
-  next();
+ if (!['admin', 'user'].includes(req.user?.role || '')) {
+   return res.status(403).json({ message: 'User access required' });
+ }
+ next();
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -66,6 +66,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Protected routes below
+
+  // Update the workflow creation route to handle metadata
   app.post("/api/workflows", isAdmin, upload.fields([
     { name: 'workflow-file', maxCount: 1 },
     { name: 'featured-image', maxCount: 1 },
@@ -146,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(workflow);
     } catch (error) {
       console.error('Error updating workflow status:', error);
-      res.status(400).json({
+      res.status(400).json({ 
         message: "Failed to update workflow status",
         error: error instanceof Error ? error.message : String(error)
       });
