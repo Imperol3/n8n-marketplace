@@ -53,10 +53,10 @@ const workflowSchema = z.object({
   requiredTier: z.enum(["free", "tier1", "tier2", "premium"]),
 });
 
-// Add user form schema
+// Update user form schema
 const userSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Invalid email address"),
   role: z.enum(["admin", "user", "viewer"]),
   tier: z.enum(["free", "tier1", "tier2", "premium"]),
 });
@@ -344,15 +344,18 @@ export default function AdminPage() {
     resolver: zodResolver(userSchema),
     defaultValues: {
       username: "",
-      password: "",
+      email: "",
       role: "viewer",
       tier: "free",
     },
   });
 
-  // Add user mutation
+  // Update createUser mutation
   const createUser = useMutation({
     mutationFn: async (data: z.infer<typeof userSchema>) => {
+      // Generate a temporary password
+      const tempPassword = Math.random().toString(36).slice(-8);
+
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -360,6 +363,7 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           ...data,
+          password: tempPassword,
           preferences: {
             tier: data.tier,
             interests: []
@@ -367,16 +371,20 @@ export default function AdminPage() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
+
+      // Show the temporary password in a toast message
+      toast({
+        title: "User Created Successfully",
+        description: `Temporary password: ${tempPassword}\nPlease share this with the user securely.`,
+        duration: 10000, // Show for 10 seconds
+      });
+
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsUserDialogOpen(false);
       userForm.reset();
-      toast({
-        title: "Success",
-        description: "User created successfully",
-      });
     },
     onError: (error: Error) => {
       toast({
@@ -703,12 +711,12 @@ export default function AdminPage() {
                     />
                     <FormField
                       control={userForm.control}
-                      name="password"
+                      name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Password</FormLabel>
+                          <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="password" {...field} />
+                            <Input type="email" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
