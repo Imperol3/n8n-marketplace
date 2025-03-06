@@ -72,21 +72,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No workflow file provided" });
       }
 
-      // Save files to storage
-      const savedPaths = {
-        file: await fileStorage.saveFile(files.file[0].buffer, files.file[0].originalname),
-        featuredImage: files?.featuredImage ? await fileStorage.saveFile(files.featuredImage[0].buffer, files.featuredImage[0].originalname) : null,
-        extraImages: files?.extraImages ? await Promise.all(
-          files.extraImages.map(f => fileStorage.saveFile(f.buffer, f.originalname))
-        ) : null
-      };
+      // Save the workflow file
+      const workflowPath = await fileStorage.saveFile(
+        files.file[0].buffer,
+        files.file[0].originalname
+      );
 
-      const parsed = insertWorkflowSchema.parse({
+      // Save any images if provided
+      const featuredImagePath = files.featuredImage 
+        ? await fileStorage.saveFile(files.featuredImage[0].buffer, files.featuredImage[0].originalname)
+        : null;
+
+      const extraImagePaths = files.extraImages 
+        ? await Promise.all(files.extraImages.map(f => fileStorage.saveFile(f.buffer, f.originalname)))
+        : null;
+
+      const workflow = await storage.createWorkflow({
         title: req.body.title,
         description: req.body.description,
-        filePath: savedPaths.file,
-        featuredImage: savedPaths.featuredImage,
-        extraImages: savedPaths.extraImages,
+        filePath: workflowPath,
+        featuredImage: featuredImagePath,
+        extraImages: extraImagePaths,
         metadata: {
           category: req.body.category || '',
           tags: [],
@@ -94,11 +100,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
-      const workflow = await storage.createWorkflow(parsed);
       res.status(201).json(workflow);
     } catch (error) {
       console.error('Workflow creation error:', error);
-      res.status(400).json({ message: "Invalid workflow data", error: error instanceof Error ? error.message : String(error) });
+      res.status(400).json({ 
+        message: "Invalid workflow data", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 

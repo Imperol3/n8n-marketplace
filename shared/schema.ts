@@ -13,7 +13,7 @@ export const workflows = pgTable("workflows", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  filePath: text("file_path"),
+  filePath: text("file_path").notNull(), 
   featuredImage: text("featured_image"),
   extraImages: text("extra_images").array(),
   metadata: jsonb("metadata").$type<{
