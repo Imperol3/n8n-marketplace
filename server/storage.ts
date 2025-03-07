@@ -1,7 +1,7 @@
-import { User, InsertUser, Workflow, InsertWorkflow, Tier, InsertTier } from "@shared/schema";
+import { User, InsertUser, Workflow, InsertWorkflow, Tier, InsertTier, Domain, InsertDomain } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { users, workflows, accessTiers } from "@shared/schema";
+import { users, workflows, accessTiers, domains } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -30,6 +30,14 @@ export interface IStorage {
   updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined>;
   deleteWorkflow(id: number): Promise<boolean>;
 
+  // Domain operations
+  getDomains(): Promise<Domain[]>;
+  getDomain(id: number): Promise<Domain | undefined>;
+  getDomainByName(domain: string): Promise<Domain | undefined>;
+  createDomain(domain: InsertDomain): Promise<Domain>;
+  updateDomain(id: number, domain: Partial<Domain>): Promise<Domain | undefined>;
+  deleteDomain(id: number): Promise<boolean>;
+
   sessionStore: session.SessionStore;
 }
 
@@ -43,7 +51,6 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -80,7 +87,6 @@ export class DatabaseStorage implements IStorage {
     return !!user;
   }
 
-  // Tier operations
   async getTiers(): Promise<Tier[]> {
     return await db.select().from(accessTiers).orderBy(accessTiers.level);
   }
@@ -112,7 +118,6 @@ export class DatabaseStorage implements IStorage {
     return !!tier;
   }
 
-  // Workflow operations
   async getWorkflows(): Promise<Workflow[]> {
     return await db.select().from(workflows);
   }
@@ -142,6 +147,42 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workflows.id, id))
       .returning();
     return !!workflow;
+  }
+
+  async getDomains(): Promise<Domain[]> {
+    return await db.select().from(domains);
+  }
+
+  async getDomain(id: number): Promise<Domain | undefined> {
+    const [domain] = await db.select().from(domains).where(eq(domains.id, id));
+    return domain;
+  }
+
+  async getDomainByName(domainName: string): Promise<Domain | undefined> {
+    const [domain] = await db.select().from(domains).where(eq(domains.domain, domainName));
+    return domain;
+  }
+
+  async createDomain(insertDomain: InsertDomain): Promise<Domain> {
+    const [domain] = await db.insert(domains).values(insertDomain).returning();
+    return domain;
+  }
+
+  async updateDomain(id: number, update: Partial<Domain>): Promise<Domain | undefined> {
+    const [domain] = await db
+      .update(domains)
+      .set(update)
+      .where(eq(domains.id, id))
+      .returning();
+    return domain;
+  }
+
+  async deleteDomain(id: number): Promise<boolean> {
+    const [domain] = await db
+      .delete(domains)
+      .where(eq(domains.id, id))
+      .returning();
+    return !!domain;
   }
 }
 

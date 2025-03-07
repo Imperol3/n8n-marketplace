@@ -557,6 +557,73 @@ export function registerRoutes(app: Express): Server {
   });
 
 
+  // Custom domain management routes
+  app.post("/api/domains", isAdmin, async (req, res) => {
+    try {
+      const { domain } = req.body;
+
+      if (!domain) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Domain name is required" 
+        });
+      }
+
+      // Store domain configuration
+      const domainConfig = await storage.createDomain({
+        domain,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        verifiedAt: null
+      });
+
+      // Send webhook notification for domain configuration
+      await sendWebhookNotification({
+        type: 'domain_added',
+        domain,
+        message: `New custom domain ${domain} has been configured`
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Domain configuration added",
+        data: domainConfig
+      });
+    } catch (error) {
+      console.error('Error configuring domain:', error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to configure domain"
+      });
+    }
+  });
+
+  app.get("/api/domains", isAdmin, async (_req, res) => {
+    try {
+      const domains = await storage.getDomains();
+      res.json(domains);
+    } catch (error) {
+      console.error('Error fetching domains:', error);
+      res.status(500).json({ message: "Failed to fetch domains" });
+    }
+  });
+
+  app.delete("/api/domains/:id", isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteDomain(parseInt(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Domain configuration not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting domain:', error);
+      res.status(400).json({
+        message: "Failed to delete domain",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -1,6 +1,23 @@
-import { pgTable, text, serial, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, jsonb, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Define domains table
+export const domains = pgTable("domains", {
+  id: serial("id").primaryKey(),
+  domain: text("domain").notNull().unique(),
+  status: text("status", { enum: ["pending", "active", "failed"] }).notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  verifiedAt: timestamp("verified_at"),
+  settings: jsonb("settings").$type<{
+    sslEnabled: boolean;
+    forceHttps: boolean;
+    customHeaders?: Record<string, string>;
+  }>().default({
+    sslEnabled: true,
+    forceHttps: true,
+  }).notNull(),
+});
 
 // Define access tiers table
 export const accessTiers = pgTable("access_tiers", {
@@ -87,6 +104,15 @@ export const insertWorkflowSchema = createInsertSchema(workflows).pick({
   metadata: true,
 });
 
+// Add domain schema
+export const insertDomainSchema = createInsertSchema(domains).pick({
+  domain: true,
+  status: true,
+  createdAt: true,
+  verifiedAt: true,
+  settings: true,
+});
+
 // Export types
 export type InsertTier = z.infer<typeof insertTierSchema>;
 export type Tier = typeof accessTiers.$inferSelect;
@@ -94,3 +120,5 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
 export type Workflow = typeof workflows.$inferSelect;
+export type InsertDomain = z.infer<typeof insertDomainSchema>;
+export type Domain = typeof domains.$inferSelect;
