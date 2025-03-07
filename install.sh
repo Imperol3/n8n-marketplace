@@ -74,7 +74,13 @@ if [ -f .env ]; then
     export PGHOST=$DB_HOST
     export PGPORT=$DB_PORT
     export PGDATABASE=$DB_NAME
-    export PGSSLMODE=${PGSSLMODE:-require}  # Default to require for cloud databases
+
+    # Set SSL mode based on host
+    if [ "$DB_HOST" = "localhost" ] || [ "$DB_HOST" = "127.0.0.1" ]; then
+      export PGSSLMODE="disable"
+    else
+      export PGSSLMODE="require"
+    fi
 
     echo "📊 Database configuration:"
     echo "  Host: $DB_HOST"
@@ -93,7 +99,7 @@ fi
 
 # Test PostgreSQL connection
 echo "🔄 Testing PostgreSQL connection..."
-if ! PGPASSWORD=$DB_PASS psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+if ! PGPASSWORD=$DB_PASS psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c '\q' 2>/dev/null; then
   echo "⚠️ PostgreSQL connection failed. Please check:"
   echo "  1. Database credentials are correct"
   echo "  2. Database server is accessible"
@@ -103,7 +109,7 @@ fi
 
 # Create database if it doesn't exist
 echo "🗄️ Setting up database..."
-if PGPASSWORD=$DB_PASS psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -lqt | cut -d \| -f 1 | grep -qw workflow_platform; then
+if PGPASSWORD=$DB_PASS psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -lqt | cut -d \| -f 1 | grep -qw workflow_platform; then
   echo "ℹ️ Database already exists"
 else
   if PGPASSWORD=$DB_PASS psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE DATABASE workflow_platform;" 2>/dev/null; then
