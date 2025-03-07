@@ -25,6 +25,8 @@ This platform allows users to:
   - Status tracking (draft, in_progress, needs_edit, published)
   - Filter workflows by status
   - Admin dashboard for workflow management
+  - Advanced workflow editing capabilities
+  - User dashboard with personalized views
 
 - ✅ File Storage
   - Secure file uploads
@@ -36,11 +38,17 @@ This platform allows users to:
   - Data remains after server restarts
   - Session persistence
 
+- ✅ Search and Filtering
+  - Advanced search capabilities
+  - Filter by multiple criteria
+  - Sort and organize workflows
+
 ### Coming Soon
-- 🔄 Workflow Editing Capabilities
-- 🔄 Advanced Search and Filtering
-- 🔄 User Dashboard
-- 🔄 Workflow Analytics
+- 🔄 Real-time Collaboration Features
+- 🔄 Advanced Analytics Dashboard
+- 🔄 Custom Workflow Templates
+- 🔄 API Integration Framework
+- 🔄 Automated Workflow Testing
 
 ## Deployment Guide
 
@@ -143,7 +151,6 @@ psql
 \password postgres
 # Enter your password when prompted
 \q
-
 exit
 ```
 
