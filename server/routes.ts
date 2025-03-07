@@ -18,35 +18,20 @@ async function hashPassword(password: string) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-// Update webhook function to use environment variable for different webhook types
+// Update webhook function to use environment variables for external notifications
 async function sendWebhookNotification(data: any) {
   try {
     let webhookUrl;
 
     // Select webhook URL based on notification type
-    switch (data.type) {
-      case 'new_user':
-        webhookUrl = process.env.WEBHOOK_USER_CREATED;
-        break;
-      case 'password_reset_request':
-        webhookUrl = process.env.WEBHOOK_PASSWORD_RESET;
-        break;
-      case 'user_login':
-        webhookUrl = process.env.WEBHOOK_USER_LOGIN;
-        break;
-      case 'user_logout':
-        webhookUrl = process.env.WEBHOOK_USER_LOGOUT;
-        break;
-      case 'user_update':
-        webhookUrl = process.env.WEBHOOK_USER_UPDATE;
-        break;
-      default:
-        console.error(`Unknown webhook type: ${data.type}`);
-        return;
+    if (data.type === 'notification') {
+      webhookUrl = process.env.EXTERNAL_NOTIFICATION_WEBHOOK;
+    } else if (data.type === 'audit') {
+      webhookUrl = process.env.EXTERNAL_AUDIT_WEBHOOK;
     }
 
     if (!webhookUrl) {
-      console.error(`Webhook URL not configured for type: ${data.type}`);
+      console.error(`External webhook URL not configured for type: ${data.type}`);
       return;
     }
 
@@ -65,7 +50,7 @@ async function sendWebhookNotification(data: any) {
     return await response.json();
   } catch (error) {
     console.error('Error sending webhook notification:', error);
-    // Don't throw - we don't want to fail user creation if notification fails
+    // Don't throw - we don't want to fail the operation if notification fails
   }
 }
 
