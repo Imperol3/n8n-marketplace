@@ -18,12 +18,35 @@ async function hashPassword(password: string) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-// Update webhook function to use environment variable
+// Update webhook function to use environment variable for different webhook types
 async function sendWebhookNotification(data: any) {
   try {
-    const webhookUrl = process.env.WEBHOOK_URL;
+    let webhookUrl;
+
+    // Select webhook URL based on notification type
+    switch (data.type) {
+      case 'new_user':
+        webhookUrl = process.env.WEBHOOK_USER_CREATED;
+        break;
+      case 'password_reset_request':
+        webhookUrl = process.env.WEBHOOK_PASSWORD_RESET;
+        break;
+      case 'user_login':
+        webhookUrl = process.env.WEBHOOK_USER_LOGIN;
+        break;
+      case 'user_logout':
+        webhookUrl = process.env.WEBHOOK_USER_LOGOUT;
+        break;
+      case 'user_update':
+        webhookUrl = process.env.WEBHOOK_USER_UPDATE;
+        break;
+      default:
+        console.error(`Unknown webhook type: ${data.type}`);
+        return;
+    }
+
     if (!webhookUrl) {
-      console.error('Webhook URL not configured');
+      console.error(`Webhook URL not configured for type: ${data.type}`);
       return;
     }
 

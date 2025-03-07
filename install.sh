@@ -28,7 +28,11 @@ APP_URL=http://localhost:5000
 SESSION_SECRET=$(openssl rand -hex 32)
 
 # Webhooks
-WEBHOOK_URL=https://dev.funautomations.io/webhook/df04170e-9c37-4acd-8427-991d22029f27
+WEBHOOK_USER_CREATED=https://dev.funautomations.io/webhook/user-created
+WEBHOOK_PASSWORD_RESET=https://dev.funautomations.io/webhook/password-reset
+WEBHOOK_USER_LOGIN=https://dev.funautomations.io/webhook/user-login
+WEBHOOK_USER_LOGOUT=https://dev.funautomations.io/webhook/user-logout
+WEBHOOK_USER_UPDATE=https://dev.funautomations.io/webhook/user-update
 
 # Email Configuration
 SMTP_HOST=smtp.example.com

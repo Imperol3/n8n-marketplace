@@ -36,7 +36,11 @@ if not exist .env (
         echo SESSION_SECRET=generate_a_secure_secret_here
         echo.
         echo # Webhooks
-        echo WEBHOOK_URL=https://dev.funautomations.io/webhook/df04170e-9c37-4acd-8427-991d22029f27
+        echo WEBHOOK_USER_CREATED=https://dev.funautomations.io/webhook/user-created
+        echo WEBHOOK_PASSWORD_RESET=https://dev.funautomations.io/webhook/password-reset
+        echo WEBHOOK_USER_LOGIN=https://dev.funautomations.io/webhook/user-login
+        echo WEBHOOK_USER_LOGOUT=https://dev.funautomations.io/webhook/user-logout
+        echo WEBHOOK_USER_UPDATE=https://dev.funautomations.io/webhook/user-update
         echo.
         echo # Email Configuration
         echo SMTP_HOST=smtp.example.com
