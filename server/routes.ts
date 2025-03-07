@@ -18,10 +18,16 @@ async function hashPassword(password: string) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-// Function to send webhook notification
+// Update webhook function to use environment variable
 async function sendWebhookNotification(data: any) {
   try {
-    const response = await fetch('https://dev.funautomations.io/webhook/df04170e-9c37-4acd-8427-991d22029f27', {
+    const webhookUrl = process.env.WEBHOOK_URL;
+    if (!webhookUrl) {
+      console.error('Webhook URL not configured');
+      return;
+    }
+
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -548,15 +554,15 @@ export function registerRoutes(app: Express): Server {
 }
 
 function isAdmin(req: Request, res: Response, next: Function) {
- if (req.user?.role !== 'admin') {
-   return res.status(403).json({ message: 'Admin access required' });
- }
- next();
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  next();
 }
 
 function isUser(req: Request, res: Response, next: Function) {
- if (!['admin', 'user'].includes(req.user?.role || '')) {
-   return res.status(403).json({ message: 'User access required' });
- }
- next();
+  if (!['admin', 'user'].includes(req.user?.role || '')) {
+    return res.status(403).json({ message: 'User access required' });
+  }
+  next();
 }
