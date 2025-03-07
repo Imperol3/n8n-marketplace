@@ -18,6 +18,7 @@ This platform allows users to:
   - Secure password hashing
   - Session management
   - Protected routes
+  - Password reset functionality
 
 - ✅ Workflow Management
   - Upload JSON workflow files
@@ -58,58 +59,56 @@ This platform allows users to:
 - Git (for version control)
 - npm (included with Node.js)
 
-### Windows Deployment
+### Environment Setup
 
-1. Install Required Software
+1. Clone the Repository
 ```bash
-# Install Node.js
-- Download Node.js 20.x from https://nodejs.org
-- Run the installer and follow the prompts
-- Verify installation: node --version
-
-# Install PostgreSQL
-- Download PostgreSQL 16.x from https://www.postgresql.org/download/windows
-- Run the installer
-- Note down the password you set for the 'postgres' user
-- Add PostgreSQL bin directory to PATH if not done automatically
+git clone <repository-url>
+cd workflow-platform
 ```
 
-2. Clone and Setup Project
+2. Set Up Environment Variables
+Create a `.env` file with the following required variables:
+```env
+# Database Configuration
+DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<database>
+PGHOST=<your-db-host>
+PGPORT=<your-db-port>
+PGUSER=<your-db-user>
+PGPASSWORD=<your-db-password>
+PGDATABASE=<your-db-name>
+PGSSLMODE=require  # Use 'require' for cloud databases, 'disable' for local
+
+# Application Configuration
+PORT=5000
+NODE_ENV=development
+APP_URL=http://localhost:5000  # Update for production
+
+# Security
+SESSION_SECRET=<your-secure-secret>
+
+# External Webhooks (Optional)
+EXTERNAL_NOTIFICATION_WEBHOOK=https://your-notification-service.com/webhook
+EXTERNAL_AUDIT_WEBHOOK=https://your-audit-service.com/webhook
+```
+
+### Installation Steps
+
+1. Install Dependencies
 ```bash
-# Create project directory
-md workflow-platform
-cd workflow-platform
-
-# Clone the repository (if using version control)
-git clone <repository-url> .
-
-# Install dependencies
 npm install
 ```
 
-3. Configure PostgreSQL
+2. Database Setup
 ```bash
-# Create database
-psql -U postgres
-CREATE DATABASE workflow_platform;
-\q
+# Create database (if using local PostgreSQL)
+createdb workflow_platform
 
 # Run database migrations
 npm run db:push
 ```
 
-4. Configure Environment Variables
-```bash
-# Create .env file
-echo > .env
-
-# Add the following to .env:
-DATABASE_URL=postgresql://postgres:your_password@localhost:5432/workflow_platform
-SESSION_SECRET=your_secure_session_secret
-APP_URL=http://localhost:5000
-```
-
-5. Start the Application
+3. Start the Application
 ```bash
 # Development mode
 npm run dev
@@ -119,114 +118,95 @@ npm run build
 npm start
 ```
 
-### Linux Server Deployment
+### Platform-Specific Deployment
 
-1. Install Required Software
+#### Replit
+1. Create a new Repl
+2. Import your repository
+3. Use the "Create Database" option in Replit to set up PostgreSQL
+4. The database environment variables will be automatically configured
+
+#### Traditional Hosting (e.g., DigitalOcean, AWS)
+1. Set up a Node.js environment
+2. Configure PostgreSQL database
+3. Set up environment variables
+4. Use PM2 or similar process manager:
 ```bash
-# Update package list
-sudo apt update
-
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Install PostgreSQL
-sudo apt install -y postgresql postgresql-contrib
-
-# Verify installations
-node --version
-psql --version
-```
-
-2. Configure PostgreSQL
-```bash
-# Switch to postgres user
-sudo -i -u postgres
-
-# Create database
-createdb workflow_platform
-
-# Set password for postgres user
-psql
-\password postgres
-# Enter your password when prompted
-\q
-exit
-```
-
-3. Clone and Setup Project
-```bash
-# Create project directory
-mkdir workflow-platform
-cd workflow-platform
-
-# Clone the repository (if using version control)
-git clone <repository-url> .
-
-# Install dependencies
-npm install
-```
-
-4. Configure Environment Variables
-```bash
-# Create and edit .env file
-nano .env
-
-# Add the following:
-DATABASE_URL=postgresql://postgres:your_password@localhost:5432/workflow_platform
-SESSION_SECRET=your_secure_session_secret
-APP_URL=http://your_domain_or_ip:5000
-```
-
-5. Setup Process Manager (PM2)
-```bash
-# Install PM2
-sudo npm install -g pm2
-
-# Start application
+npm install -g pm2
 pm2 start npm --name "workflow-platform" -- start
-
-# Configure PM2 to start on boot
 pm2 startup
 pm2 save
 ```
 
-### Production Considerations
-
-1. Security
-- Use strong passwords for database and session secrets
-- Enable SSL/TLS for production deployments
-- Configure proper firewall rules
-- Keep Node.js and dependencies updated
-
-2. Performance
-- Enable Node.js production mode: `NODE_ENV=production`
-- Use a reverse proxy (Nginx/Apache) for production
-- Configure proper caching headers
-- Enable GZip compression
-
-3. Monitoring
-- Setup application logging
-- Configure error tracking
-- Monitor server resources
-- Setup backup strategies
-
-4. Nginx Configuration Example
-```nginx
-server {
-    listen 80;
-    server_name your_domain.com;
-
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
+#### Container Deployment
+1. Ensure Docker is installed
+2. Build the container:
+```bash
+docker build -t workflow-platform .
+docker run -p 5000:5000 --env-file .env workflow-platform
 ```
+
+### Troubleshooting
+
+#### Database Connection Issues
+1. Verify PostgreSQL is running:
+```bash
+# Linux
+sudo service postgresql status
+
+# macOS
+brew services list
+
+# Windows
+sc query postgresql
+```
+
+2. Check Connection:
+```bash
+psql -h <host> -p <port> -U <user> -d <database>
+```
+
+3. Common Issues:
+- SSL Mode: Ensure PGSSLMODE is set correctly ('require' for cloud, 'disable' for local)
+- Port Access: Check firewall rules allow database port
+- Credentials: Verify username/password are correct
+- Database Exists: Confirm database was created
+
+#### Application Issues
+1. Check Logs:
+```bash
+# Development
+npm run dev
+
+# Production
+pm2 logs workflow-platform
+```
+
+2. Verify Environment:
+- Node.js version (`node -v`)
+- NPM packages installed (`npm ls`)
+- Environment variables set (`printenv`)
+
+#### File Upload Issues
+1. Ensure upload directory exists and has correct permissions
+2. Check file size limits in your server configuration
+3. Verify supported file types are configured correctly
+
+### Security Considerations
+1. Use strong passwords for database and session secrets
+2. Enable SSL/TLS in production
+3. Configure proper firewall rules
+4. Keep Node.js and dependencies updated
+5. Set up proper CORS configuration
+6. Implement rate limiting for API endpoints
+
+### Monitoring
+1. Set up application logging
+2. Configure error tracking
+3. Monitor server resources
+4. Implement backup strategies
+
+For additional help or custom deployment scenarios, please create an issue in the repository.
 
 ## Environment Variables
 Required environment variables:
