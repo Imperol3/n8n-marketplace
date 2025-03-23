@@ -162,6 +162,64 @@ npm run build
 npm start
 ```
 
+## Deployment
+
+### Prerequisites
+- Node.js 18+ installed on the server
+- PostgreSQL database (we use Neon Database)
+- Environment variables configured (see `.env.example`)
+
+### Deployment Options
+
+#### 1. Manual Deployment
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Build the application:
+   ```bash
+   npm run build
+   ```
+4. Set up environment variables (see `.env.example`)
+5. Start the production server:
+   ```bash
+   npm start
+   ```
+
+#### 2. Platform Deployment (Recommended)
+
+##### Using Railway
+1. Connect your GitHub repository to Railway
+2. Add the required environment variables in Railway's dashboard
+3. Railway will automatically detect the Procfile and build/start scripts
+4. Deploy using Railway's dashboard
+
+##### Using Render
+1. Create a new Web Service in Render
+2. Connect your GitHub repository
+3. Set the build command: `npm install && npm run build`
+4. Set the start command: `npm start`
+5. Add environment variables in Render's dashboard
+6. Deploy using Render's dashboard
+
+### Post-Deployment
+1. Set up a custom domain (if needed)
+2. Configure SSL certificates
+3. Set up monitoring and logging
+4. Update the admin password
+5. Configure backup strategies for the database
+
+### Production Considerations
+- Use strong SESSION_SECRET
+- Configure proper CORS settings if needed
+- Set up rate limiting for API endpoints
+- Enable SSL/TLS
+- Configure proper logging
+- Set up monitoring and alerts
+- Regular database backups
+- Configure proper caching strategies
+
 ## Troubleshooting
 
 ### Common Issues
