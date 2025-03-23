@@ -220,6 +220,111 @@ npm start
 - Regular database backups
 - Configure proper caching strategies
 
+## Domain Configuration
+
+### Setting Up Your Domain
+
+1. Update Environment Variables
+```bash
+# Edit your .env file
+nano .env
+
+# Add your domain to ALLOWED_ORIGINS
+ALLOWED_ORIGINS="http://yourdomain.com,https://yourdomain.com"
+```
+
+2. Install and Configure Nginx
+```bash
+# Install Nginx
+sudo apt update
+sudo apt install nginx
+
+# Install Certbot for SSL
+sudo apt install certbot python3-certbot-nginx
+
+# Get SSL Certificate
+sudo certbot --nginx -d yourdomain.com
+
+# Copy the nginx configuration
+sudo cp nginx.conf.example /etc/nginx/sites-available/yourdomain.com
+sudo ln -s /etc/nginx/sites-available/yourdomain.com /etc/nginx/sites-enabled/
+```
+
+3. Edit Nginx Configuration
+```bash
+# Edit the configuration
+sudo nano /etc/nginx/sites-available/yourdomain.com
+
+# Replace 'yourdomain.com' with your actual domain
+# Adjust SSL certificate paths if needed
+```
+
+4. Test and Restart Nginx
+```bash
+# Test configuration
+sudo nginx -t
+
+# If test is successful, restart Nginx
+sudo systemctl restart nginx
+```
+
+### Security Considerations
+- Always use HTTPS in production
+- Keep SSL certificates up to date
+- Regularly update Nginx and security headers
+- Monitor for unusual traffic patterns
+- Set up proper firewall rules
+
+## Security
+
+### Updating Admin Credentials
+For security reasons, you should change the default admin credentials after deployment. Use the provided script:
+
+```bash
+# Pull the latest changes
+git pull
+
+# Install dependencies if needed
+npm install
+
+# Update admin password and optionally email
+npm run update-admin "your-new-password" "new-admin-email@example.com"
+```
+
+Example:
+```bash
+npm run update-admin "MySecurePass123!" "admin@yourdomain.com"
+```
+
+Password Requirements:
+- Minimum 12 characters
+- Mix of uppercase and lowercase letters
+- Include numbers and special characters
+- Avoid common words or patterns
+- Don't reuse passwords from other services
+
+⚠️ **Important**: 
+- Store the new credentials securely
+- Update relevant environment variables if needed
+- Test logging in with the new credentials immediately
+- Never share admin credentials through unsecured channels
+- Regularly update the admin password as part of security maintenance
+
+### Updating User Passwords
+To update a password for a specific user, use:
+
+```bash
+# Update password for a specific email
+npm run update-password "user@email.com" "new-password"
+```
+
+Example:
+```bash
+npm run update-password "user@example.com" "MySecurePass123!"
+```
+
+The script will verify the user exists before updating their password.
+
 ## Troubleshooting
 
 ### Common Issues
