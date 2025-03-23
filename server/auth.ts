@@ -15,13 +15,13 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
-async function hashPassword(password: string) {
+async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
 }
 
-async function comparePasswords(supplied: string, stored: string) {
+async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
   try {
     const [hashed, salt] = stored.split(".");
     if (!hashed || !salt) return false;
@@ -44,6 +44,7 @@ async function initializeAdmin() {
       console.log("Creating admin user...");
       await storage.createUser({
         username: "admin",
+        email: "admin@example.com",
         password: await hashPassword("admin123"),
         role: "admin",
       });
@@ -75,44 +76,41 @@ export function setupAuth(app: Express) {
   initializeAdmin();
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy(async (username: string, password: string, done: (error: any, user?: any, options?: any) => void) => {
       try {
         console.log(`Login attempt for user: ${username}`);
         const user = await storage.getUserByUsername(username);
         console.log("User found:", !!user);
 
-        if (!user || !(await comparePasswords(password, user.password))) {
-          console.log("Login failed: Invalid credentials");
-          return done(null, false);
-        } else {
-          console.log("Login successful");
-          return done(null, user);
+        if (!user) {
+          return done(null, false, { message: "Incorrect username" });
         }
-      } catch (error) {
-        console.error("Login error:", error);
-        return done(error);
+
+        const isValid = await comparePasswords(password, user.password);
+        if (!isValid) {
+          return done(null, false, { message: "Incorrect password" });
+        }
+
+        return done(null, user);
+      } catch (err: any) {
+        return done(err);
       }
     }),
   );
 
-  passport.serializeUser((user, done) => {
-    console.log("Serializing user:", user.id);
+  passport.serializeUser((user: any, done: (error: any, id?: any) => void) => {
     done(null, user.id);
   });
 
-  passport.deserializeUser(async (id: number, done) => {
+  passport.deserializeUser(async (id: number, done: (error: any, user?: any) => void) => {
     try {
-      console.log("Deserializing user:", id);
       const user = await storage.getUser(id);
       if (!user) {
-        console.log("User not found during deserialization");
         return done(null, false);
       }
-      console.log("User deserialized successfully");
       done(null, user);
-    } catch (error) {
-      console.error("Deserialization error:", error);
-      done(error);
+    } catch (err: any) {
+      done(err);
     }
   });
 
