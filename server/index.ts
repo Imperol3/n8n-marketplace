@@ -3,6 +3,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from 'path';
+import { initializeUploadDirectory } from './initUploadDir';
+
+// Initialize upload directory at startup
+initializeUploadDirectory();
 
 const app = express();
 app.use(express.json());
@@ -41,13 +45,13 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use('/uploads', express.static(path.join(process.cwd(), '.replit', 'uploads'), {
+  app.use('/uploads', express.static(path.join(process.cwd(), '.data', 'uploads'), {
     fallthrough: true // Enable falling through for missing files
   }));
 
   // Handle 404 errors for images
   app.use('/uploads', (req, res, next) => {
-    res.status(404).json({ 
+    res.status(404).json({
       error: 'Image not found',
       path: req.path
     });
