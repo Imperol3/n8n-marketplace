@@ -413,7 +413,7 @@ const UserDialog = ({ isOpen, onClose, editUser }: { isOpen: boolean; onClose: (
 
 // Analytics component
 function AnalyticsCard() {
-  const { data: analyticsData, isLoading } = useQuery({
+  const { data: analyticsData, isLoading, error } = useQuery({
     queryKey: ['/api/analytics'],
     queryFn: async () => {
       const res = await fetch('/api/analytics');
@@ -432,11 +432,26 @@ function AnalyticsCard() {
     );
   }
   
+  if (error) {
+    return (
+      <div className="col-span-3 p-6 border rounded-lg bg-card">
+        <h3 className="text-xl font-medium mb-2">Analytics Error</h3>
+        <p className="text-muted-foreground">Error fetching analytics data. This could be due to a missing analytics table.</p>
+        <p className="text-sm mt-4">The system will automatically create the analytics table on the next server restart.</p>
+        <div className="mt-4 p-3 bg-amber-100 border border-amber-300 rounded-md text-amber-800">
+          <p className="font-medium">Server restart required</p>
+          <p className="text-sm mt-1">Database migrations will run automatically on server restart to create the missing analytics table.</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (!analyticsData) {
     return (
       <div className="col-span-3 p-6 border rounded-lg bg-card">
         <h3 className="text-xl font-medium mb-2">Analytics</h3>
-        <p className="text-muted-foreground">No analytics data available</p>
+        <p className="text-muted-foreground">No analytics data available yet</p>
+        <p className="text-sm mt-4">Analytics data will be automatically collected as users interact with the platform.</p>
       </div>
     );
   }
@@ -448,7 +463,7 @@ function AnalyticsCard() {
         <div className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground">Total Users</p>
-            <p className="text-3xl font-bold">{analyticsData.totalUsers}</p>
+            <p className="text-3xl font-bold">{analyticsData.totalUsers || 0}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Active Users (Last 30 Days)</p>
@@ -462,7 +477,7 @@ function AnalyticsCard() {
         <div className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground">Total Downloads</p>
-            <p className="text-3xl font-bold">{analyticsData.totalDownloads}</p>
+            <p className="text-3xl font-bold">{analyticsData.totalDownloads || 0}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Unique Workflows Downloaded</p>
@@ -480,7 +495,9 @@ function AnalyticsCard() {
               .slice(0, 5)
               .map((item, index) => (
                 <div key={index} className="flex justify-between items-center py-2 border-b border-border">
-                  <span>Workflow #{item.workflowId}</span>
+                  <span className="truncate max-w-[180px]">
+                    {item.title || `Workflow #${item.workflowId}`}
+                  </span>
                   <span className="font-semibold">{item.downloads} downloads</span>
                 </div>
               ))}
@@ -523,11 +540,31 @@ function AnalyticsCard() {
       </div>
       
       <div className="p-6 border rounded-lg bg-card shadow-sm">
-        <h3 className="text-xl font-medium mb-4">System Information</h3>
-        <div className="space-y-2">
+        <h3 className="text-xl font-medium mb-4">System Status</h3>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-muted-foreground">Analytics Table</span>
+            </div>
+            <span className="text-green-500 font-medium">Available</span>
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-muted-foreground">Data Collection</span>
+            </div>
+            <span className="text-green-500 font-medium">Active</span>
+          </div>
+          
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Last Updated</span>
-            <span>{analyticsData.lastUpdated ? new Date(analyticsData.lastUpdated).toLocaleString() : 'Never'}</span>
+            <span className="text-sm">
+              {analyticsData.lastUpdated 
+                ? new Date(analyticsData.lastUpdated).toLocaleString() 
+                : 'Never'}
+            </span>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import path from 'path';
 import fs from 'fs';
 import { migrateUploads, PERSISTENT_UPLOAD_DIR, PUBLIC_UPLOAD_DIR } from './migrateUploads';
+import { runMigrations } from './migration';
 
 // Run comprehensive file system migration on startup
 // This ensures all uploaded files are properly synchronized between
@@ -12,6 +13,9 @@ import { migrateUploads, PERSISTENT_UPLOAD_DIR, PUBLIC_UPLOAD_DIR } from './migr
 console.log('------------------------------------------------------');
 console.log('Starting file system migration for persistent uploads...');
 migrateUploads();
+
+// Run database migrations to ensure all tables exist with proper structure
+runMigrations();
 
 const app = express();
 app.use(express.json());
