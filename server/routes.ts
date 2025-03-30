@@ -58,7 +58,7 @@ async function sendWebhookNotification(data: any) {
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, file, cb) => {
-      const uploadDir = path.join(process.cwd(), '.data', 'uploads');
+      const uploadDir = path.join(process.cwd(), 'uploads');
       // Ensure the uploads directory exists
       if (!fs.existsSync(uploadDir)){
         fs.mkdirSync(uploadDir, { recursive: true });
@@ -235,7 +235,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Serve uploaded files (but not workflow files)
-  app.use('/uploads', express.static(path.join(process.cwd(), '.data', 'uploads')));
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Protected routes below
 
