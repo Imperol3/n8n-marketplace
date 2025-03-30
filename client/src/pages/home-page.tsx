@@ -91,7 +91,8 @@ export default function HomePage() {
     });
   }, [workflows, searchTerm]);
 
-  // Filter workflows based on user role, tier, and category
+  // Filter workflows based on category and sorting preferences
+  // Note: We want to show all workflows to all users, but only allow download for those with appropriate tier
   const filteredWorkflows = useMemo(() => {
     if (!searchedWorkflows) return [];
 
@@ -101,10 +102,8 @@ export default function HomePage() {
       filtered = filtered.filter(workflow => workflow.metadata?.categories?.includes(selectedCategory));
     }
 
-    // Apply availability filter
-    if (user?.role !== "admin") {
-      filtered = filtered.filter(isWorkflowAvailable);
-    }
+    // Only filter by status - show published workflows to everyone regardless of login status
+    filtered = filtered.filter(workflow => workflow.status === "published" || user?.role === "admin");
     
     // Apply sorting
     return [...filtered].sort((a, b) => {
@@ -131,7 +130,7 @@ export default function HomePage() {
       }
       return 0;
     });
-  }, [searchedWorkflows, user, selectedCategory, userTier, sortOrder]);
+  }, [searchedWorkflows, user, selectedCategory, sortOrder]);
 
   // Get unique categories from workflows
   const categories = useMemo(() => {
@@ -146,12 +145,13 @@ export default function HomePage() {
     return ["all", ...uniqueCategories];
   }, [workflows]);
   
-  // Count workflows per category
+  // Count workflows per category - count all published workflows
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: 0 };
     
     (workflows as Workflow[]).forEach((workflow: Workflow) => {
-      if (isWorkflowAvailable(workflow)) {
+      // Show all published workflows in counts, or all workflows for admin
+      if (workflow.status === "published" || user?.role === "admin") {
         counts.all = (counts.all || 0) + 1;
         
         workflow.metadata?.categories?.forEach((category: string) => {
@@ -163,7 +163,7 @@ export default function HomePage() {
     });
     
     return counts;
-  }, [workflows, user, userTier, isWorkflowAvailable]);
+  }, [workflows, user]);
 
   // Handle retry loading
   const handleRetry = () => {
@@ -326,13 +326,14 @@ export default function HomePage() {
                   </>
                 ) : (
                   <>
-                    No workflows available for your current access level. 
                     {selectedCategory !== "all" ? (
-                      <> Try selecting a different category or </>
+                      <>No workflows available in the {selectedCategory} category.</>
                     ) : (
-                      <> Please </>
+                      <>No published workflows are currently available.</>
                     )}
-                    contact an administrator to upgrade your tier.
+                    {!user && (
+                      <> Sign in to access premium tier workflows.</>
+                    )}
                   </>
                 )}
               </CardDescription>
