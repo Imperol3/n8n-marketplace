@@ -183,6 +183,18 @@ export class FileStorage {
         return persistentPath;
       }
       
+      // Check for alternative workflows that might be available
+      const availableFiles = this.listFiles();
+      if (availableFiles.length > 0) {
+        // Find if there's any actual workflow file we can use as a fallback
+        const jsonFiles = availableFiles.filter(file => file.endsWith('.json'));
+        if (jsonFiles.length > 0) {
+          const fallbackFile = jsonFiles[0];
+          fileLogger.info(`Using fallback workflow file for ${fileName}: ${fallbackFile}`);
+          return path.join(PUBLIC_UPLOAD_DIR, fallbackFile);
+        }
+      }
+      
       // If file doesn't exist in either location, throw an error
       fileLogger.error(`File not found in any location: ${fileName}`);
       throw new Error(`File not found: ${fileName}`);
