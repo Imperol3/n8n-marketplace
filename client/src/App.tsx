@@ -16,7 +16,7 @@ function Router() {
     <Switch>
       {/* Public routes */}
       <Route path="/" component={HomePage} />
-      <Route path="/workflow/:id" component={WorkflowDetailsPage} />
+      <Route path="/workflows/:id" component={WorkflowDetailsPage} />
       <Route path="/auth" component={AuthPage} />
       
       {/* Protected routes */}

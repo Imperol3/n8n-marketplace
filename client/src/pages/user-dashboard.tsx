@@ -182,7 +182,7 @@ export default function UserDashboard() {
                         </div>
                         <div className="flex justify-end mt-4">
                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/workflow/${item.workflowId}`}>
+                            <Link href={`/workflows/${item.workflowId}`}>
                               View Workflow
                             </Link>
                           </Button>
