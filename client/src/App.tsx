@@ -8,16 +8,22 @@ import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
 import AdminPage from "@/pages/admin-page";
 import WorkflowDetailsPage from "@/pages/workflow-details";
+import UserDashboard from "@/pages/user-dashboard";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
   return (
     <Switch>
-      {/* Remove ProtectedRoute from HomePage to allow public access */}
+      {/* Public routes */}
       <Route path="/" component={HomePage} />
-      <Route path="/workflows/:id" component={WorkflowDetailsPage} />
-      <ProtectedRoute path="/admin" component={AdminPage} />
+      <Route path="/workflow/:id" component={WorkflowDetailsPage} />
       <Route path="/auth" component={AuthPage} />
+      
+      {/* Protected routes */}
+      <ProtectedRoute path="/admin" component={AdminPage} />
+      <ProtectedRoute path="/dashboard" component={UserDashboard} />
+      
+      {/* 404 fallback */}
       <Route component={NotFound} />
     </Switch>
   );

@@ -659,6 +659,234 @@ app.post("/api/v1/users", async (req, res) => {
     }
   });
 
+  // USER FAVORITE WORKFLOWS ROUTES
+
+  // Get user's favorite workflows
+  app.get("/api/favorites", isUser, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const favorites = await storage.getFavoriteWorkflows(userId);
+      res.json(favorites);
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch favorite workflows",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Add workflow to favorites
+  app.post("/api/favorites/:workflowId", isUser, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const workflowId = parseInt(req.params.workflowId);
+      
+      const updatedUser = await storage.addFavoriteWorkflow(userId, workflowId);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User or workflow not found" });
+      }
+      
+      res.status(200).json({ 
+        message: "Workflow added to favorites",
+        favorites: updatedUser.preferences.favoriteWorkflows
+      });
+    } catch (error) {
+      console.error('Error adding to favorites:', error);
+      res.status(500).json({ 
+        message: "Failed to add workflow to favorites",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Remove workflow from favorites
+  app.delete("/api/favorites/:workflowId", isUser, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const workflowId = parseInt(req.params.workflowId);
+      
+      const updatedUser = await storage.removeFavoriteWorkflow(userId, workflowId);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User or favorite not found" });
+      }
+      
+      res.status(200).json({ 
+        message: "Workflow removed from favorites",
+        favorites: updatedUser.preferences.favoriteWorkflows
+      });
+    } catch (error) {
+      console.error('Error removing from favorites:', error);
+      res.status(500).json({ 
+        message: "Failed to remove workflow from favorites",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Get user's download history
+  app.get("/api/download-history", isUser, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const history = await storage.getDownloadHistory(userId);
+      res.json(history);
+    } catch (error) {
+      console.error('Error fetching download history:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch download history",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // WORKFLOW RATING ROUTES
+
+  // Get ratings for a workflow
+  app.get("/api/workflows/:id/ratings", async (req, res) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      const ratings = await storage.getWorkflowRatings(workflowId);
+      res.json(ratings);
+    } catch (error) {
+      console.error('Error fetching ratings:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch ratings",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Add/update a rating for a workflow
+  app.post("/api/workflows/:id/ratings", isUser, async (req, res) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { rating, review } = req.body;
+      
+      if (rating === undefined || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "Rating must be between 1 and 5" });
+      }
+      
+      const updatedWorkflow = await storage.addWorkflowRating(workflowId, userId, rating, review);
+      if (!updatedWorkflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      res.status(200).json({ 
+        message: "Rating added successfully",
+        ratings: updatedWorkflow.metadata.ratings,
+        averageRating: updatedWorkflow.metadata.averageRating
+      });
+    } catch (error) {
+      console.error('Error adding rating:', error);
+      res.status(500).json({ 
+        message: "Failed to add rating",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // WORKFLOW DOCUMENTATION ROUTES
+
+  // Get documentation for a workflow
+  app.get("/api/workflows/:id/documentation", async (req, res) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      const documentation = await storage.getWorkflowDocumentation(workflowId);
+      
+      if (!documentation) {
+        return res.status(404).json({ message: "Documentation not found for this workflow" });
+      }
+      
+      res.json({ documentation });
+    } catch (error) {
+      console.error('Error fetching documentation:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch documentation",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Add/update documentation for a workflow (admin only)
+  app.post("/api/workflows/:id/documentation", isAdmin, async (req, res) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      const { documentation } = req.body;
+      
+      if (!documentation || typeof documentation !== 'string') {
+        return res.status(400).json({ message: "Documentation content is required" });
+      }
+      
+      const updatedWorkflow = await storage.addWorkflowDocumentation(workflowId, documentation);
+      if (!updatedWorkflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      res.status(200).json({ 
+        message: "Documentation updated successfully",
+        documentation: updatedWorkflow.metadata.documentation
+      });
+    } catch (error) {
+      console.error('Error updating documentation:', error);
+      res.status(500).json({ 
+        message: "Failed to update documentation",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Update download route to record download history
+  app.get("/api/workflows/:id/download", isUser, async (req, res) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      const workflow = await storage.getWorkflow(workflowId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+
+      // Only admin can download non-published workflows
+      if (workflow.status !== 'published' && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "This workflow is not available for download" });
+      }
+
+      // Check if user has access to this tier
+      const userTier = req.user!.preferences.tier;
+      const requiredTier = workflow.metadata.requiredTier;
+      
+      // Admin can download any workflow regardless of tier
+      if (req.user!.role !== 'admin') {
+        const tiers = await storage.getTiers();
+        const tierLevels = tiers.reduce((acc, tier) => {
+          acc[tier.name] = tier.level;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        if (
+          !tierLevels[userTier] || 
+          !tierLevels[requiredTier] || 
+          tierLevels[userTier] < tierLevels[requiredTier]
+        ) {
+          return res.status(403).json({ 
+            message: `This workflow requires ${requiredTier} tier access` 
+          });
+        }
+      }
+
+      // Record the download in user's history
+      await storage.recordWorkflowDownload(userId, workflowId);
+
+      // Send the file
+      const filePath = fileStorage.getAbsolutePath(workflow.filePath);
+      res.download(filePath);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      res.status(404).json({ message: "Workflow file not found" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

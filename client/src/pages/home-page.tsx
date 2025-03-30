@@ -256,6 +256,9 @@ export default function HomePage() {
                   <Button variant="outline">Admin Dashboard</Button>
                 </Link>
               )}
+              <Link href="/dashboard">
+                <Button variant="outline">My Dashboard</Button>
+              </Link>
               <Button 
                 variant="outline" 
                 onClick={() => logoutMutation.mutate()}

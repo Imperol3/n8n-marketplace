@@ -1,18 +1,97 @@
-import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useParams, Link } from "wouter";
 import { Workflow } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { Link } from "wouter";
-import { Download, ExternalLink, ChevronLeft } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { 
+  Download, 
+  ExternalLink, 
+  ChevronLeft, 
+  Star, 
+  StarOff, 
+  FileText,
+  MessageCircle
+} from "lucide-react";
+import WorkflowDocumentation from "@/components/workflow-documentation";
+import WorkflowRatings from "@/components/workflow-ratings";
+import { useState } from "react";
+
+const PLACEHOLDER_IMAGE = "/placeholder-image.svg";
 
 export default function WorkflowDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("overview");
+  const numericId = parseInt(id);
   
   const { data: workflow, isLoading } = useQuery<Workflow>({
     queryKey: [`/api/workflows/${id}`],
   });
+
+  // Check if workflow is in user's favorites
+  const { data: favorites } = useQuery<Workflow[]>({
+    queryKey: ["/api/favorites"],
+    enabled: !!user,
+  });
+
+  const isFavorite = favorites?.some(fav => fav.id === numericId);
+
+  // Favorite/unfavorite mutations
+  const addFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/favorites/${id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Added to Favorites",
+        description: "Workflow has been added to your favorites"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add to favorites",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const removeFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/favorites/${id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Removed from Favorites",
+        description: "Workflow has been removed from your favorites"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove from favorites",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Toggle favorite status
+  const toggleFavorite = () => {
+    if (isFavorite) {
+      removeFavoriteMutation.mutate();
+    } else {
+      addFavoriteMutation.mutate();
+    }
+  };
 
   if (isLoading) {
     return (
@@ -53,12 +132,57 @@ export default function WorkflowDetailsPage() {
               Back to Workflows
             </Button>
           </Link>
-          <h1 className="text-4xl font-bold mb-2">{workflow.title}</h1>
-          {workflow.metadata?.category && (
-            <div className="text-muted-foreground mb-4">
-              Category: {workflow.metadata.category}
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">{workflow.title}</h1>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {workflow.metadata?.categories?.map((category) => (
+                  <Badge key={category} variant="secondary">
+                    {category}
+                  </Badge>
+                ))}
+              </div>
+              {workflow.metadata?.averageRating && workflow.metadata.averageRating > 0 && (
+                <div className="flex items-center text-amber-500">
+                  {Array(5).fill(0).map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className="h-4 w-4" 
+                      fill={i < Math.round(workflow.metadata?.averageRating || 0) ? "currentColor" : "none"}
+                    />
+                  ))}
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    {workflow.metadata.averageRating.toFixed(1)} 
+                    {workflow.metadata.ratings && (
+                      <span className="ml-1">({workflow.metadata.ratings.length} {workflow.metadata.ratings.length === 1 ? 'review' : 'reviews'})</span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
+            
+            {user && (
+              <Button 
+                variant="outline" 
+                onClick={toggleFavorite}
+                disabled={addFavoriteMutation.isPending || removeFavoriteMutation.isPending}
+                className="min-w-40"
+              >
+                {isFavorite ? (
+                  <>
+                    <StarOff className="h-4 w-4 mr-2" />
+                    Remove from Favorites
+                  </>
+                ) : (
+                  <>
+                    <Star className="h-4 w-4 mr-2" />
+                    Add to Favorites
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -69,32 +193,62 @@ export default function WorkflowDetailsPage() {
                 src={workflow.featuredImage}
                 alt={workflow.title}
                 className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.src = PLACEHOLDER_IMAGE; }}
               />
             </div>
 
-            {/* Description */}
-            <div className="prose prose-lg max-w-none">
-              <h2 className="text-2xl font-semibold mb-4">Description</h2>
-              <p className="whitespace-pre-wrap">{workflow.description}</p>
-            </div>
-
-            {/* Additional Images */}
-            {workflow.extraImages && workflow.extraImages.length > 0 && (
-              <div>
-                <h2 className="text-2xl font-semibold mb-4">Additional Screenshots</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {workflow.extraImages.map((image, index) => (
-                    <div key={index} className="aspect-video rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={image}
-                        alt={`${workflow.title} screenshot ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
+            {/* Tabs for different content sections */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid grid-cols-3 mb-6">
+                <TabsTrigger value="overview" className="flex items-center gap-2">
+                  <ChevronLeft className="h-4 w-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="documentation" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Documentation
+                </TabsTrigger>
+                <TabsTrigger value="ratings" className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  Ratings & Reviews
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="overview" className="space-y-6">
+                {/* Description */}
+                <div className="prose prose-lg max-w-none">
+                  <h2 className="text-2xl font-semibold mb-4">Description</h2>
+                  <p className="whitespace-pre-wrap">{workflow.description}</p>
                 </div>
-              </div>
-            )}
+
+                {/* Additional Images */}
+                {workflow.extraImages && workflow.extraImages.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-semibold mb-4">Additional Screenshots</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {workflow.extraImages.map((image, index) => (
+                        <div key={index} className="aspect-video rounded-lg overflow-hidden bg-muted">
+                          <img
+                            src={image}
+                            alt={`${workflow.title} screenshot ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.currentTarget.src = PLACEHOLDER_IMAGE; }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="documentation">
+                <WorkflowDocumentation workflowId={numericId} />
+              </TabsContent>
+              
+              <TabsContent value="ratings">
+                <WorkflowRatings workflowId={numericId} />
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar */}
@@ -112,7 +266,7 @@ export default function WorkflowDetailsPage() {
             {/* Download Section */}
             <div className="rounded-lg border p-6">
               <h2 className="text-xl font-semibold mb-4">Download Workflow</h2>
-              {(user?.role === "admin" || user?.role === "user") ? (
+              {user ? (
                 <Button className="w-full" asChild>
                   <a href={`/api/workflows/${workflow.id}/download`}>
                     <Download className="h-4 w-4 mr-2" />
@@ -127,6 +281,11 @@ export default function WorkflowDetailsPage() {
                   <Button className="w-full" asChild>
                     <Link href="/auth">Sign in to Download</Link>
                   </Button>
+                </div>
+              )}
+              {workflow.metadata?.requiredTier && workflow.metadata.requiredTier !== "free" && (
+                <div className="mt-3 text-sm text-muted-foreground">
+                  <p className="font-medium">Required tier: {workflow.metadata.requiredTier}</p>
                 </div>
               )}
             </div>
@@ -162,6 +321,21 @@ export default function WorkflowDetailsPage() {
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+            
+            {/* User Dashboard Link */}
+            {user && (
+              <div className="rounded-lg border p-6 bg-gradient-to-r from-slate-50 to-slate-100">
+                <h2 className="text-xl font-semibold mb-4">Your Dashboard</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Access your favorite workflows, download history, and personalized recommendations.
+                </p>
+                <Button className="w-full" variant="outline" asChild>
+                  <Link href="/dashboard">
+                    Go to Dashboard
+                  </Link>
+                </Button>
               </div>
             )}
           </div>

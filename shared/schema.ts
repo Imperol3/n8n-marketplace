@@ -37,9 +37,13 @@ export const users = pgTable("users", {
   preferences: jsonb("preferences").$type<{
     interests: string[];
     tier: string;
+    favoriteWorkflows?: number[]; // Array of workflow IDs that the user has favorited
+    downloadHistory?: { workflowId: number, downloadedAt: string }[]; // Track download history
   }>().notNull().default({
     interests: [],
-    tier: "free"
+    tier: "free",
+    favoriteWorkflows: [],
+    downloadHistory: []
   }),
 });
 
@@ -76,10 +80,20 @@ export const workflows = pgTable("workflows", {
     tags: string[];
     previewUrl?: string;
     requiredTier: string;
+    documentation?: string; // Markdown formatted guide/documentation
+    ratings?: { 
+      userId: number;
+      rating: number; 
+      review?: string;
+      createdAt: string;
+    }[]; // User ratings and reviews
+    averageRating?: number; // Calculated average rating
   }>().notNull().default({
     categories: [],
     tags: [],
-    requiredTier: "free"
+    requiredTier: "free",
+    ratings: [],
+    averageRating: 0
   }),
 });
 

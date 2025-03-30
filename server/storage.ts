@@ -15,6 +15,15 @@ export interface IStorage {
   getUsers(): Promise<User[]>;
   updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
+  
+  // User favorites operations
+  addFavoriteWorkflow(userId: number, workflowId: number): Promise<User | undefined>;
+  removeFavoriteWorkflow(userId: number, workflowId: number): Promise<User | undefined>;
+  getFavoriteWorkflows(userId: number): Promise<Workflow[]>;
+  
+  // Download history operations
+  recordWorkflowDownload(userId: number, workflowId: number): Promise<User | undefined>;
+  getDownloadHistory(userId: number): Promise<{ workflowId: number, downloadedAt: string }[]>;
 
   // Tier operations
   getTiers(): Promise<Tier[]>;
@@ -29,6 +38,14 @@ export interface IStorage {
   createWorkflow(workflow: InsertWorkflow): Promise<Workflow>;
   updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined>;
   deleteWorkflow(id: number): Promise<boolean>;
+  
+  // Rating operations
+  addWorkflowRating(workflowId: number, userId: number, rating: number, review?: string): Promise<Workflow | undefined>;
+  getWorkflowRatings(workflowId: number): Promise<{ userId: number; rating: number; review?: string; createdAt: string }[]>;
+  
+  // Documentation operations
+  addWorkflowDocumentation(workflowId: number, documentation: string): Promise<Workflow | undefined>;
+  getWorkflowDocumentation(workflowId: number): Promise<string | undefined>;
 
   // Domain operations
   getDomains(): Promise<Domain[]>;
@@ -183,6 +200,183 @@ export class DatabaseStorage implements IStorage {
       .where(eq(domains.id, id))
       .returning();
     return !!domain;
+  }
+
+  // User favorites operations
+  async addFavoriteWorkflow(userId: number, workflowId: number): Promise<User | undefined> {
+    // Get the current user
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+
+    // Get the workflow to verify it exists
+    const workflow = await this.getWorkflow(workflowId);
+    if (!workflow) return undefined;
+
+    // Initialize favoriteWorkflows array if it doesn't exist
+    if (!user.preferences.favoriteWorkflows) {
+      user.preferences.favoriteWorkflows = [];
+    }
+
+    // Add the workflow ID if it's not already favorited
+    if (!user.preferences.favoriteWorkflows.includes(workflowId)) {
+      user.preferences.favoriteWorkflows.push(workflowId);
+      
+      // Update the user in the database
+      return await this.updateUser(userId, {
+        preferences: user.preferences
+      });
+    }
+
+    return user;
+  }
+
+  async removeFavoriteWorkflow(userId: number, workflowId: number): Promise<User | undefined> {
+    // Get the current user
+    const user = await this.getUser(userId);
+    if (!user || !user.preferences.favoriteWorkflows) return undefined;
+
+    // Filter out the workflow ID from favorites
+    user.preferences.favoriteWorkflows = user.preferences.favoriteWorkflows.filter(id => id !== workflowId);
+    
+    // Update the user in the database
+    return await this.updateUser(userId, {
+      preferences: user.preferences
+    });
+  }
+
+  async getFavoriteWorkflows(userId: number): Promise<Workflow[]> {
+    // Get the current user
+    const user = await this.getUser(userId);
+    if (!user || !user.preferences.favoriteWorkflows || user.preferences.favoriteWorkflows.length === 0) {
+      return [];
+    }
+
+    // Get all workflows that match the favorite IDs
+    const favoriteWorkflows: Workflow[] = [];
+    for (const workflowId of user.preferences.favoriteWorkflows) {
+      const workflow = await this.getWorkflow(workflowId);
+      if (workflow) favoriteWorkflows.push(workflow);
+    }
+
+    return favoriteWorkflows;
+  }
+
+  // Download history operations
+  async recordWorkflowDownload(userId: number, workflowId: number): Promise<User | undefined> {
+    // Get the current user
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+
+    // Get the workflow to verify it exists
+    const workflow = await this.getWorkflow(workflowId);
+    if (!workflow) return undefined;
+
+    // Initialize downloadHistory array if it doesn't exist
+    if (!user.preferences.downloadHistory) {
+      user.preferences.downloadHistory = [];
+    }
+
+    // Add the download record
+    user.preferences.downloadHistory.push({
+      workflowId,
+      downloadedAt: new Date().toISOString()
+    });
+    
+    // Update the user in the database
+    return await this.updateUser(userId, {
+      preferences: user.preferences
+    });
+  }
+
+  async getDownloadHistory(userId: number): Promise<{ workflowId: number, downloadedAt: string }[]> {
+    // Get the current user
+    const user = await this.getUser(userId);
+    if (!user || !user.preferences.downloadHistory) {
+      return [];
+    }
+
+    return user.preferences.downloadHistory;
+  }
+
+  // Rating operations
+  async addWorkflowRating(workflowId: number, userId: number, rating: number, review?: string): Promise<Workflow | undefined> {
+    // Get the workflow
+    const workflow = await this.getWorkflow(workflowId);
+    if (!workflow) return undefined;
+
+    // Ensure the user exists
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+
+    // Initialize ratings array if it doesn't exist
+    if (!workflow.metadata.ratings) {
+      workflow.metadata.ratings = [];
+    }
+
+    // Check if user already rated this workflow
+    const existingRatingIndex = workflow.metadata.ratings.findIndex(r => r.userId === userId);
+    
+    if (existingRatingIndex !== -1) {
+      // Update existing rating
+      workflow.metadata.ratings[existingRatingIndex] = {
+        userId,
+        rating,
+        review,
+        createdAt: new Date().toISOString()
+      };
+    } else {
+      // Add new rating
+      workflow.metadata.ratings.push({
+        userId,
+        rating,
+        review,
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    // Calculate average rating
+    const totalRating = workflow.metadata.ratings.reduce((sum, r) => sum + r.rating, 0);
+    workflow.metadata.averageRating = workflow.metadata.ratings.length > 0 
+      ? totalRating / workflow.metadata.ratings.length 
+      : 0;
+
+    // Update the workflow in the database
+    return await this.updateWorkflow(workflowId, {
+      metadata: workflow.metadata
+    });
+  }
+
+  async getWorkflowRatings(workflowId: number): Promise<{ userId: number; rating: number; review?: string; createdAt: string }[]> {
+    // Get the workflow
+    const workflow = await this.getWorkflow(workflowId);
+    if (!workflow || !workflow.metadata.ratings) {
+      return [];
+    }
+
+    return workflow.metadata.ratings;
+  }
+
+  // Documentation operations
+  async addWorkflowDocumentation(workflowId: number, documentation: string): Promise<Workflow | undefined> {
+    // Get the workflow
+    const workflow = await this.getWorkflow(workflowId);
+    if (!workflow) return undefined;
+
+    // Update the documentation
+    workflow.metadata.documentation = documentation;
+
+    // Update the workflow in the database
+    return await this.updateWorkflow(workflowId, {
+      metadata: workflow.metadata
+    });
+  }
+
+  async getWorkflowDocumentation(workflowId: number): Promise<string | undefined> {
+    // Get the workflow
+    const workflow = await this.getWorkflow(workflowId);
+    if (!workflow) return undefined;
+
+    return workflow.metadata.documentation;
   }
 }
 
