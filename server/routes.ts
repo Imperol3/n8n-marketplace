@@ -59,20 +59,47 @@ async function sendWebhookNotification(data: any) {
   }
 }
 
-// Update the upload configuration
+// Update the upload configuration to use persistent storage
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req, file, cb) => {
-      const uploadDir = path.join(process.cwd(), 'uploads');
+      // Use the persistent uploads directory
+      const persistentUploadDir = path.join(process.cwd(), '.data', 'uploads');
       // Ensure the uploads directory exists
-      if (!fs.existsSync(uploadDir)){
-        fs.mkdirSync(uploadDir, { recursive: true });
+      if (!fs.existsSync(persistentUploadDir)){
+        fs.mkdirSync(persistentUploadDir, { recursive: true });
       }
-      cb(null, uploadDir);
+      
+      // Also make sure the public directory exists
+      const publicUploadDir = path.join(process.cwd(), 'uploads');
+      if (!fs.existsSync(publicUploadDir)){
+        fs.mkdirSync(publicUploadDir, { recursive: true });
+      }
+      
+      // Store in the persistent directory
+      cb(null, persistentUploadDir);
     },
     filename: (_req, file, cb) => {
       const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-      cb(null, `${uniqueSuffix}-${file.originalname}`);
+      const fileName = `${uniqueSuffix}-${file.originalname}`;
+      cb(null, fileName);
+      
+      // After uploading to persistent storage, we'll copy to the public directory
+      // for immediate serving (this happens asynchronously)
+      const persistentPath = path.join(process.cwd(), '.data', 'uploads', fileName);
+      const publicPath = path.join(process.cwd(), 'uploads', fileName);
+      
+      // Use a slight delay to ensure the file is fully written before copying
+      setTimeout(() => {
+        try {
+          if (fs.existsSync(persistentPath)) {
+            fs.copyFileSync(persistentPath, publicPath);
+            console.log(`File copied to public directory: ${fileName}`);
+          }
+        } catch (error) {
+          console.error(`Error copying file to public directory: ${error}`);
+        }
+      }, 100);
     }
   })
 });

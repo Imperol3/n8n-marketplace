@@ -45,12 +45,19 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // First try to serve from the public uploads directory
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+    fallthrough: true // Enable falling through for missing files
+  }));
+  
+  // Then try the persistent storage directory
   app.use('/uploads', express.static(path.join(process.cwd(), '.data', 'uploads'), {
     fallthrough: true // Enable falling through for missing files
   }));
 
   // Handle 404 errors for images
   app.use('/uploads', (req, res, next) => {
+    console.log(`File not found in either location: ${req.path}`);
     res.status(404).json({
       error: 'Image not found',
       path: req.path

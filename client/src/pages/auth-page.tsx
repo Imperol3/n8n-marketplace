@@ -16,9 +16,18 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-const authSchema = z.object({
+// Base schema for common fields
+const baseAuthSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+// Login schema (just username and password)
+const loginSchema = baseAuthSchema;
+
+// Registration schema (adds email)
+const registerSchema = baseAuthSchema.extend({
+  email: z.string().email("Please enter a valid email address"),
 });
 
 export default function AuthPage() {
@@ -26,12 +35,17 @@ export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
 
-  const form = useForm<z.infer<typeof authSchema>>({
-    resolver: zodResolver(authSchema),
+  // Use the appropriate schema based on the active tab
+  const currentSchema = activeTab === "login" ? loginSchema : registerSchema;
+
+  const form = useForm<z.infer<typeof registerSchema>>({
+    resolver: zodResolver(currentSchema),
     defaultValues: {
       username: "",
       password: "",
+      email: "",
     },
+    mode: "onChange"
   });
 
   if (user) {
@@ -39,10 +53,15 @@ export default function AuthPage() {
     return null;
   }
 
-  const onSubmit = async (data: z.infer<typeof authSchema>) => {
+  const onSubmit = async (data: z.infer<typeof registerSchema>) => {
     if (activeTab === "login") {
-      await loginMutation.mutateAsync(data);
+      // For login, we only need username and password
+      await loginMutation.mutateAsync({
+        username: data.username,
+        password: data.password
+      });
     } else {
+      // For registration, we need all fields
       await registerMutation.mutateAsync(data);
     }
   };
@@ -113,6 +132,19 @@ export default function AuthPage() {
                           <FormLabel>Username</FormLabel>
                           <FormControl>
                             <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
