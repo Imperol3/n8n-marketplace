@@ -389,16 +389,34 @@ export class DatabaseStorage implements IStorage {
 
   // Analytics operations
   async getAnalytics(): Promise<Analytics | undefined> {
-    // Try to get existing analytics record
-    const [analyticsRecord] = await db.select().from(analytics);
-    
-    // If no record exists, create a new one
-    if (!analyticsRecord) {
-      const [newRecord] = await db.insert(analytics).values({}).returning();
-      return newRecord;
+    try {
+      // Try to get existing analytics record
+      const analyticsResults = await db.select().from(analytics);
+      const analyticsRecord = analyticsResults.length > 0 ? analyticsResults[0] : null;
+      
+      // If no record exists, create a new one
+      if (!analyticsRecord) {
+        console.log('Creating new analytics record');
+        try {
+          const [newRecord] = await db.insert(analytics).values({
+            totalUsers: 0,
+            totalDownloads: 0,
+            activeUsers: {},
+            downloadsPerWorkflow: {},
+            lastUpdated: new Date()
+          }).returning();
+          return newRecord;
+        } catch (insertError) {
+          console.error('Error creating analytics record:', insertError);
+          return undefined;
+        }
+      }
+      
+      return analyticsRecord;
+    } catch (error) {
+      console.error('Error getting analytics record:', error);
+      return undefined;
     }
-    
-    return analyticsRecord;
   }
 
   async incrementTotalUsers(): Promise<Analytics | undefined> {
@@ -420,76 +438,168 @@ export class DatabaseStorage implements IStorage {
   }
 
   async recordUserActivity(userId: number): Promise<Analytics | undefined> {
-    // Get or create analytics record
-    const analyticsRecord = await this.getAnalytics();
-    if (!analyticsRecord) return undefined;
-    
-    // Update active users record
-    const activeUsersData = analyticsRecord.activeUsers || {};
-    
-    // Update or add user activity
-    activeUsersData[userId] = {
-      lastActive: new Date().toISOString(),
-      pageViews: (activeUsersData[userId]?.pageViews || 0) + 1
-    };
-    
-    // Update record
-    const [updatedRecord] = await db
-      .update(analytics)
-      .set({ 
-        activeUsers: activeUsersData,
-        lastUpdated: new Date()
-      })
-      .where(eq(analytics.id, analyticsRecord.id))
-      .returning();
-    
-    return updatedRecord;
+    try {
+      // Get or create analytics record
+      const analyticsRecord = await this.getAnalytics();
+      if (!analyticsRecord) return undefined;
+      
+      // Update active users record
+      let activeUsersData: Record<string, { lastActive: string, pageViews: number }> = {};
+      
+      // Parse existing active users if it exists
+      if (analyticsRecord.activeUsers) {
+        if (typeof analyticsRecord.activeUsers === 'string') {
+          try {
+            activeUsersData = JSON.parse(analyticsRecord.activeUsers as string);
+          } catch (e) {
+            console.error('Failed to parse activeUsers JSON:', e);
+            activeUsersData = {};
+          }
+        } else if (typeof analyticsRecord.activeUsers === 'object') {
+          activeUsersData = analyticsRecord.activeUsers as Record<string, { lastActive: string, pageViews: number }>;
+        }
+      }
+      
+      // Update or add user activity
+      const userIdStr = userId.toString();
+      const existingData = activeUsersData[userIdStr];
+      activeUsersData[userIdStr] = {
+        lastActive: new Date().toISOString(),
+        pageViews: (existingData?.pageViews || 0) + 1
+      };
+      
+      // Update record
+      const [updatedRecord] = await db
+        .update(analytics)
+        .set({ 
+          activeUsers: activeUsersData,
+          lastUpdated: new Date()
+        })
+        .where(eq(analytics.id, analyticsRecord.id))
+        .returning();
+      
+      return updatedRecord;
+    } catch (error) {
+      console.error('Error recording user activity:', error);
+      return undefined;
+    }
   }
 
   async incrementTotalDownloads(workflowId: number): Promise<Analytics | undefined> {
-    // Get or create analytics record
-    const analyticsRecord = await this.getAnalytics();
-    if (!analyticsRecord) return undefined;
-    
-    // Update downloads per workflow
-    const downloadsData = analyticsRecord.downloadsPerWorkflow || {};
-    downloadsData[workflowId] = (downloadsData[workflowId] || 0) + 1;
-    
-    // Update record
-    const [updatedRecord] = await db
-      .update(analytics)
-      .set({ 
-        totalDownloads: analyticsRecord.totalDownloads + 1,
-        downloadsPerWorkflow: downloadsData,
-        lastUpdated: new Date()
-      })
-      .where(eq(analytics.id, analyticsRecord.id))
-      .returning();
-    
-    return updatedRecord;
+    try {
+      // Get or create analytics record
+      const analyticsRecord = await this.getAnalytics();
+      if (!analyticsRecord) return undefined;
+      
+      // Update downloads per workflow
+      let downloadsData: Record<number, number> = {};
+      
+      // Parse existing downloads if it exists
+      if (analyticsRecord.downloadsPerWorkflow) {
+        if (typeof analyticsRecord.downloadsPerWorkflow === 'string') {
+          try {
+            downloadsData = JSON.parse(analyticsRecord.downloadsPerWorkflow as string);
+          } catch (e) {
+            console.error('Failed to parse downloadsPerWorkflow JSON:', e);
+            downloadsData = {};
+          }
+        } else if (typeof analyticsRecord.downloadsPerWorkflow === 'object') {
+          downloadsData = analyticsRecord.downloadsPerWorkflow as Record<number, number>;
+        }
+      }
+      
+      // Update download count
+      const workflowIdStr = workflowId.toString();
+      const currentCount = downloadsData[workflowIdStr] || 0;
+      downloadsData[workflowIdStr] = currentCount + 1;
+      
+      console.log(`Recording download for workflow ${workflowId}, new count: ${downloadsData[workflowIdStr]}`);
+      
+      // Update record
+      const [updatedRecord] = await db
+        .update(analytics)
+        .set({ 
+          totalDownloads: analyticsRecord.totalDownloads + 1,
+          downloadsPerWorkflow: downloadsData,
+          lastUpdated: new Date()
+        })
+        .where(eq(analytics.id, analyticsRecord.id))
+        .returning();
+      
+      return updatedRecord;
+    } catch (error) {
+      console.error('Error incrementing total downloads:', error);
+      return undefined;
+    }
   }
 
   async getActiveUsers(): Promise<{ userId: number, lastActive: string, pageViews: number }[]> {
-    const analyticsRecord = await this.getAnalytics();
-    if (!analyticsRecord || !analyticsRecord.activeUsers) return [];
-    
-    // Convert object to array
-    return Object.entries(analyticsRecord.activeUsers).map(([userId, data]) => ({
-      userId: parseInt(userId),
-      lastActive: data.lastActive,
-      pageViews: data.pageViews
-    }));
+    try {
+      const analyticsRecord = await this.getAnalytics();
+      if (!analyticsRecord) return [];
+      
+      let activeUsersData: Record<string, { lastActive: string, pageViews: number }> = {};
+      
+      // Parse existing active users if it exists
+      if (analyticsRecord.activeUsers) {
+        if (typeof analyticsRecord.activeUsers === 'string') {
+          try {
+            activeUsersData = JSON.parse(analyticsRecord.activeUsers as string);
+          } catch (e) {
+            console.error('Failed to parse activeUsers JSON:', e);
+            return [];
+          }
+        } else if (typeof analyticsRecord.activeUsers === 'object') {
+          activeUsersData = analyticsRecord.activeUsers as Record<string, { lastActive: string, pageViews: number }>;
+        }
+      }
+      
+      // Convert object to array
+      return Object.entries(activeUsersData)
+        .filter(([_, data]) => data && data.lastActive) // Filter out null/undefined entries
+        .map(([userId, data]) => ({
+          userId: parseInt(userId),
+          lastActive: data.lastActive,
+          pageViews: data.pageViews || 0
+        }));
+    } catch (error) {
+      console.error('Error getting active users:', error);
+      return [];
+    }
   }
 
   async getDownloadsPerWorkflow(): Promise<{ workflowId: number, downloads: number }[]> {
-    const analyticsRecord = await this.getAnalytics();
-    if (!analyticsRecord || !analyticsRecord.downloadsPerWorkflow) return [];
-    
-    // Convert object to array
-    return Object.entries(analyticsRecord.downloadsPerWorkflow).map(([workflowId, downloads]) => ({
-      workflowId: parseInt(workflowId),
-      downloads
-    }));
+    try {
+      const analyticsRecord = await this.getAnalytics();
+      if (!analyticsRecord) return [];
+      
+      let downloadsData: Record<string, number> = {};
+      
+      // Parse existing downloads if it exists
+      if (analyticsRecord.downloadsPerWorkflow) {
+        if (typeof analyticsRecord.downloadsPerWorkflow === 'string') {
+          try {
+            downloadsData = JSON.parse(analyticsRecord.downloadsPerWorkflow as string);
+          } catch (e) {
+            console.error('Failed to parse downloadsPerWorkflow JSON:', e);
+            return [];
+          }
+        } else if (typeof analyticsRecord.downloadsPerWorkflow === 'object') {
+          downloadsData = analyticsRecord.downloadsPerWorkflow as Record<string, number>;
+        }
+      }
+      
+      // Convert object to array
+      return Object.entries(downloadsData)
+        .filter(([_, count]) => count) // Filter out zero or undefined counts
+        .map(([workflowId, downloads]) => ({
+          workflowId: parseInt(workflowId),
+          downloads: downloads || 0
+        }));
+    } catch (error) {
+      console.error('Error getting downloads per workflow:', error);
+      return [];
+    }
   }
 }
 

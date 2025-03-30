@@ -2,22 +2,18 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Workflow } from "@shared/schema";
 import { Search, AlertTriangle, Filter, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -33,19 +29,24 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [sortOrder, setSortOrder] = useState<string>("newest");
-  
+
   // Track which images have failed to load
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
 
   const handleImageError = (workflowId: number) => {
-    setFailedImages(prev => ({
+    setFailedImages((prev) => ({
       ...prev,
-      [workflowId]: true
+      [workflowId]: true,
     }));
   };
 
-  const { data: workflows = [], isLoading, error, refetch } = useQuery<Workflow[]>({
-    queryKey: ["/api/workflows"]
+  const {
+    data: workflows = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<Workflow[]>({
+    queryKey: ["/api/workflows"],
   });
 
   // Get the user's tier
@@ -53,12 +54,12 @@ export default function HomePage() {
     if (!user || !user.preferences) return null;
     return user.preferences.tier;
   }, [user]);
-  
+
   // Function to check if a workflow is available to the current user
   const isWorkflowAvailable = (workflow: Workflow) => {
     // For admin, all workflows are available
     if (user?.role === "admin") return true;
-    
+
     // For regular users, check tier and status
     const requiredTier = workflow.metadata?.requiredTier || "free";
     const tierMatch = !requiredTier || requiredTier === userTier;
@@ -70,23 +71,25 @@ export default function HomePage() {
   const searchedWorkflows = useMemo(() => {
     if (!workflows) return [];
     if (!searchTerm.trim()) return workflows;
-    
+
     const searchLower = searchTerm.toLowerCase();
     return (workflows as Workflow[]).filter((workflow: Workflow) => {
       // Search in title and description
       const titleMatch = workflow.title?.toLowerCase().includes(searchLower);
-      const descMatch = workflow.description?.toLowerCase().includes(searchLower);
-      
+      const descMatch = workflow.description
+        ?.toLowerCase()
+        .includes(searchLower);
+
       // Search in categories from metadata
-      const categoryMatch = workflow.metadata?.categories?.some(
-        (cat: string) => cat.toLowerCase().includes(searchLower)
+      const categoryMatch = workflow.metadata?.categories?.some((cat: string) =>
+        cat.toLowerCase().includes(searchLower),
       );
-      
+
       // Search in tags from metadata
-      const tagMatch = workflow.metadata?.tags?.some(
-        (tag: string) => tag.toLowerCase().includes(searchLower)
+      const tagMatch = workflow.metadata?.tags?.some((tag: string) =>
+        tag.toLowerCase().includes(searchLower),
       );
-      
+
       return titleMatch || descMatch || categoryMatch || tagMatch;
     });
   }, [workflows, searchTerm]);
@@ -99,12 +102,16 @@ export default function HomePage() {
     // Filter by category if selected
     let filtered = searchedWorkflows;
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(workflow => workflow.metadata?.categories?.includes(selectedCategory));
+      filtered = filtered.filter((workflow) =>
+        workflow.metadata?.categories?.includes(selectedCategory),
+      );
     }
 
     // Only filter by status - show published workflows to everyone regardless of login status
-    filtered = filtered.filter(workflow => workflow.status === "published" || user?.role === "admin");
-    
+    filtered = filtered.filter(
+      (workflow) => workflow.status === "published" || user?.role === "admin",
+    );
+
     // Apply sorting
     return [...filtered].sort((a, b) => {
       if (sortOrder === "newest") {
@@ -114,14 +121,14 @@ export default function HomePage() {
           const dateStr = new Date().toISOString();
           return new Date(dateStr);
         };
-        
+
         return getDate(b).getTime() - getDate(a).getTime();
       } else if (sortOrder === "oldest") {
         const getDate = (w: Workflow) => {
           const dateStr = new Date().toISOString();
           return new Date(dateStr);
         };
-        
+
         return getDate(a).getTime() - getDate(b).getTime();
       } else if (sortOrder === "name_asc") {
         return (a.title || "").localeCompare(b.title || "");
@@ -135,25 +142,25 @@ export default function HomePage() {
   // Get unique categories from workflows
   const categories = useMemo(() => {
     if (!workflows) return [];
-    
+
     // Extract categories from workflow metadata
-    const allCategories = (workflows as Workflow[]).flatMap((workflow: Workflow) => 
-      workflow.metadata?.categories || []
-    ).filter(Boolean); // Remove any undefined or null categories
-    
+    const allCategories = (workflows as Workflow[])
+      .flatMap((workflow: Workflow) => workflow.metadata?.categories || [])
+      .filter(Boolean); // Remove any undefined or null categories
+
     const uniqueCategories = Array.from(new Set(allCategories)).sort();
     return ["all", ...uniqueCategories];
   }, [workflows]);
-  
+
   // Count workflows per category - count all published workflows
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: 0 };
-    
+
     (workflows as Workflow[]).forEach((workflow: Workflow) => {
       // Show all published workflows in counts, or all workflows for admin
       if (workflow.status === "published" || user?.role === "admin") {
         counts.all = (counts.all || 0) + 1;
-        
+
         workflow.metadata?.categories?.forEach((category: string) => {
           if (category) {
             counts[category] = (counts[category] || 0) + 1;
@@ -161,7 +168,7 @@ export default function HomePage() {
         });
       }
     });
-    
+
     return counts;
   }, [workflows, user]);
 
@@ -176,7 +183,7 @@ export default function HomePage() {
       <div className="min-h-screen bg-background">
         <header className="border-b">
           <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Workflow Marketplace</h1>
+            <h1 className="text-2xl font-bold">Fun Automations Workflows</h1>
             <Skeleton className="h-10 w-24" />
           </div>
         </header>
@@ -186,14 +193,17 @@ export default function HomePage() {
             <Skeleton className="h-10 w-full md:w-64" />
             <Skeleton className="h-10 w-32" />
           </div>
-          
+
           <div className="mb-6">
             <Skeleton className="h-10 w-full" />
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex flex-col gap-2 border rounded-lg p-4">
+              <div
+                key={i}
+                className="flex flex-col gap-2 border rounded-lg p-4"
+              >
                 <Skeleton className="h-48 w-full rounded-lg" />
                 <Skeleton className="h-8 w-3/4" />
                 <Skeleton className="h-4 w-full" />
@@ -217,7 +227,9 @@ export default function HomePage() {
           <div className="container mx-auto px-6 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold">Workflow Marketplace</h1>
             {user ? (
-              <Button variant="outline" onClick={() => logoutMutation.mutate()}>Logout</Button>
+              <Button variant="outline" onClick={() => logoutMutation.mutate()}>
+                Logout
+              </Button>
             ) : (
               <Link href="/auth">
                 <Button variant="outline">Sign in</Button>
@@ -229,7 +241,9 @@ export default function HomePage() {
         <main className="container mx-auto p-6">
           <div className="flex flex-col items-center justify-center h-64">
             <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Error loading workflows</h2>
+            <h2 className="text-xl font-semibold mb-2">
+              Error loading workflows
+            </h2>
             <p className="text-muted-foreground mb-4">{error.message}</p>
             <Button onClick={handleRetry}>Retry</Button>
           </div>
@@ -259,10 +273,7 @@ export default function HomePage() {
               <Link href="/dashboard">
                 <Button variant="outline">My Dashboard</Button>
               </Link>
-              <Button 
-                variant="outline" 
-                onClick={() => logoutMutation.mutate()}
-              >
+              <Button variant="outline" onClick={() => logoutMutation.mutate()}>
                 Logout
               </Button>
             </div>
@@ -303,7 +314,11 @@ export default function HomePage() {
           <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
             <TabsList className="mb-4">
               {categories.map((category: string) => (
-                <TabsTrigger key={category} value={category} className="capitalize whitespace-nowrap">
+                <TabsTrigger
+                  key={category}
+                  value={category}
+                  className="capitalize whitespace-nowrap"
+                >
                   {category}
                   {categoryCounts[category] > 0 && (
                     <Badge variant="secondary" className="ml-2">
@@ -330,19 +345,20 @@ export default function HomePage() {
                 ) : (
                   <>
                     {selectedCategory !== "all" ? (
-                      <>No workflows available in the {selectedCategory} category.</>
+                      <>
+                        No workflows available in the {selectedCategory}{" "}
+                        category.
+                      </>
                     ) : (
                       <>No published workflows are currently available.</>
                     )}
-                    {!user && (
-                      <> Sign in to access premium tier workflows.</>
-                    )}
+                    {!user && <> Sign in to access premium tier workflows.</>}
                   </>
                 )}
               </CardDescription>
               {searchTerm && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="mt-4"
                   onClick={() => setSearchTerm("")}
                 >
@@ -354,9 +370,9 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredWorkflows.map((workflow) => (
-              <WorkflowCard 
-                key={workflow.id} 
-                workflow={workflow} 
+              <WorkflowCard
+                key={workflow.id}
+                workflow={workflow}
                 onImageError={() => handleImageError(workflow.id)}
                 useFallbackImage={!!failedImages[workflow.id]}
                 fallbackImage={PLACEHOLDER_IMAGE}
