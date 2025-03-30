@@ -28,6 +28,7 @@ import { z } from "zod";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -48,6 +49,7 @@ import { Tier } from "@shared/schema";
 const workflowSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
+  documentation: z.string().optional(),
   videoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   categories: z.string().min(1, "Please enter at least one category"),
   tags: z.string().optional(),
@@ -509,6 +511,7 @@ export default function AdminPage() {
     defaultValues: {
       title: "",
       description: "",
+      documentation: "",
       videoUrl: "",
       categories: "",
       tags: "",
@@ -521,6 +524,7 @@ export default function AdminPage() {
       form.reset({
         title: editWorkflow.title,
         description: editWorkflow.description,
+        documentation: editWorkflow.metadata?.documentation || "",
         videoUrl: editWorkflow.videoUrl || "",
         categories: editWorkflow.metadata?.categories?.join(", ") || "",
         tags: editWorkflow.metadata?.tags?.join(", ") || "",
@@ -530,6 +534,7 @@ export default function AdminPage() {
       form.reset({
         title: "",
         description: "",
+        documentation: "",
         videoUrl: "",
         categories: "",
         tags: "",
@@ -626,6 +631,7 @@ export default function AdminPage() {
       categories: data.categories.split(',').map(c => c.trim()),
       tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
       requiredTier: data.requiredTier,
+      documentation: data.documentation || '',
     }));
 
     const workflowFile = document.querySelector<HTMLInputElement>('#workflow-file')?.files?.[0];
@@ -828,6 +834,22 @@ export default function AdminPage() {
                           <FormControl>
                             <Textarea {...field} />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="documentation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Documentation (Markdown supported)</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} className="min-h-40 font-mono text-sm" placeholder="# Getting Started&#10;&#10;This workflow helps you to...&#10;&#10;## Requirements&#10;&#10;- Item 1&#10;- Item 2&#10;&#10;## Configuration" />
+                          </FormControl>
+                          <FormDescription>
+                            Provide detailed instructions on how to use this workflow using Markdown formatting.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
