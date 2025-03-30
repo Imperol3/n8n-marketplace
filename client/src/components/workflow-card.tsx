@@ -54,8 +54,10 @@ export default function WorkflowCard({
     },
     onSuccess: () => {
       toast({
-        title: "Added to Favorites",
-        description: "Workflow has been added to your favorites"
+        title: "Added to Favorites ⭐",
+        description: "Workflow has been added to your favorites",
+        variant: "default",
+        className: "bg-primary text-primary-foreground border-primary"
       });
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
     },
@@ -77,7 +79,8 @@ export default function WorkflowCard({
     onSuccess: () => {
       toast({
         title: "Removed from Favorites",
-        description: "Workflow has been removed from your favorites"
+        description: "Workflow has been removed from your favorites",
+        variant: "secondary"
       });
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
     },
@@ -142,13 +145,17 @@ export default function WorkflowCard({
             <Button
               size="icon"
               variant={isFavorite ? "default" : "outline"}
-              className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full shadow-md bg-background/80 hover:bg-background transition-colors duration-200"
+              className={`absolute top-3 right-3 z-10 h-10 w-10 rounded-full shadow-lg 
+              ${isFavorite 
+                ? "bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-primary scale-110" 
+                : "bg-background hover:bg-background/90 border-2 border-primary/30 hover:border-primary"} 
+              transition-all duration-200 hover:scale-110 animate-in fade-in-50`}
               onClick={toggleFavorite}
             >
               {isFavorite ? (
-                <Star className="h-4 w-4" fill="currentColor" />
+                <Star className="h-5 w-5" fill="currentColor" stroke="currentColor" strokeWidth={3} />
               ) : (
-                <Star className="h-4 w-4" />
+                <Star className="h-5 w-5" strokeWidth={2} />
               )}
               <span className="sr-only">{isFavorite ? 'Remove from favorites' : 'Add to favorites'}</span>
             </Button>
