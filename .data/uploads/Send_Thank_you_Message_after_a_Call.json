@@ -1,0 +1,988 @@
+{
+  "name": "Send Thank you Message after a Call",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        160
+      ],
+      "id": "6eb638c4-6500-46aa-975c-89b1d73a5375",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "DjsDsrPkJRSfqINF",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        140,
+        1080
+      ],
+      "id": "06a1ac75-099d-4a87-a0c5-36b83eb2b7a7",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "ja490hUjKCOlSnOl",
+          "name": "Mistral Cloud account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\nMeeting notes:\nMeeting title : {{ $json.title }}\noverview: {{ $json.overview }}\ngist : {{ $json.gist }}\nbullet_gist: {{ $json.bullet_gist }}\nshorthand_bullet: {{ $json.shorthand_bullet }}\nshort_summary: {{ $json.short_summary }}\nKeywords discussed : {{ $json.keywords }}\noutline: {{ $json.outline }}\nmeeting id: {{ $json.id }}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a helpful assistant. Your task is to send personalized thank you note after a call. This will be a very simple Thank you note that we send to a user after each call\n\nI will provide you with the some details on the meeting agenda and you will draft a sweet Thank you note for these users \n\nDon't sound generic or use phrases like \" I hope this email finds you well\"\n\nFor all these meetings, I am the organizer : I Zacharia Kimotho and will be the one sending all these follow ups \n\n\nJust have the body part for the email"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -120,
+        -260
+      ],
+      "id": "f7108269-a443-4d97-a617-e3def6c7c600",
+      "name": "Thank you for the call",
+      "retryOnFail": true,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash-002",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        980
+      ],
+      "id": "f74f7685-d8ba-4834-9960-faf7330cd4f8",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "bL81VvLoLpmYpWx1",
+          "name": "SEO Doctor"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"subject\": \"Thank You for the Meeting\",\n  \"greeting\": \"Dear [Name],\",\n  \"message\": \"Thank you for your time and insights during our meeting. We appreciate your contributions, especially on [key topic]. We look forward to the next steps, including [next action]. Let’s stay in touch!\",\n  \"closing\": \"Best regards,\",\n  \"sender\": \"[Your Name/Team]\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        60,
+        140
+      ],
+      "id": "e2454928-eadf-4495-a72f-2034666bc678",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -60
+      ],
+      "id": "203d1997-9795-4fb2-bfc0-cc29b4c0af59",
+      "name": "Auto-fixing Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {
+          "prompt": "Instructions:\n--------------\n{instructions}\n--------------\nCompletion:\n--------------\n{completion}\n--------------\n\nAbove, the Completion did not satisfy the constraints given in the Instructions.\nError:\n--------------\n{error}\n--------------\n\nPlease try again. Please only respond with an answer that satisfies the constraints laid out in the Instructions:"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        140,
+        900
+      ],
+      "id": "f8dafa77-1350-4d22-8ea4-55660204bb17",
+      "name": "Auto-fixing Output Parser1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30057d58-536f-43a2-bb09-4d5a14e8fb85",
+              "name": "subject",
+              "value": "={{ $json.output.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "3e1af575-0260-4238-8094-af85da70db61",
+              "name": "greeting",
+              "value": "={{ $json.output.greeting }}",
+              "type": "string"
+            },
+            {
+              "id": "4e1f4b74-04a6-4718-a3c3-52e9f0a62049",
+              "name": "message",
+              "value": "={{ $json.output.message }}",
+              "type": "string"
+            },
+            {
+              "id": "94303443-f726-4dce-9789-da5ea2903749",
+              "name": "closing",
+              "value": "={{ $json.output.closing }}",
+              "type": "string"
+            },
+            {
+              "id": "05cc4a5c-e76a-473e-b56e-81cda0ecf41b",
+              "name": "sender",
+              "value": "={{ $json.output.sender }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        -260
+      ],
+      "id": "56b6a45a-e5e8-4fda-b2c4-dd2a6c43bc20",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "kimothozacharia5@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.greeting }}\n\n{{ $json.message }}\n\n{{ $json.closing }}\n{{ $json.sender }}",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Send",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Custom Instructions",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {
+          "messageButtonLabel": "Thank You"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        -260
+      ],
+      "id": "2c4c1a21-72f0-4c03-9bfc-f3ae3898aa0d",
+      "name": "Is Good",
+      "webhookId": "dee4e014-5dcb-4432-86a1-702bfdbd2d43",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8PS0qVYNzZvoWNA7",
+          "name": "phoenix✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        800,
+        220
+      ],
+      "id": "dbe98eb3-dfd4-493c-b109-eff280fd3d4d",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "DjsDsrPkJRSfqINF",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"subject\": \"Thank You for the Meeting\",\n  \"greeting\": \"Dear [Name],\",\n  \"message\": \"Thank you for your time and insights during our meeting. We appreciate your contributions, especially on [key topic]. We look forward to the next steps, including [next action]. Let’s stay in touch!\",\n  \"closing\": \"Best regards,\",\n  \"sender\": \"[Your Name/Team]\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        280
+      ],
+      "id": "1b27b515-694f-4f13-886b-82f8dc7d5131",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        980,
+        140
+      ],
+      "id": "80b9a7b4-3ded-4bc0-856a-b146c131b3fd",
+      "name": "Auto-fixing Output Parser2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "74484333-bb9f-4060-8e4e-90f5046a6876",
+              "leftValue": "={{ $json.data.Send }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        -260
+      ],
+      "id": "42f5791c-bdc7-418a-baa1-aca7cc2c5466",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Send thank you').item.json.meeting_attendees_email.filter(email => email !== \"kimothozacharia5@gmail.com\")[0] }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.greeting }}\n\n{{ $json.message }}\n\n{{ $json.closing }}\n{{ $json.sender }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Zacharia Kimotho"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        -380
+      ],
+      "id": "27d0ebf4-9fbb-4287-bd3c-222a626e9b31",
+      "name": "Is Good1",
+      "webhookId": "dee4e014-5dcb-4432-86a1-702bfdbd2d43",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "B0bkiaTgyFgw5TGL",
+          "name": "Gmail account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "kimothozacharia5@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.greeting }}\n\n{{ $json.message }}\n\n{{ $json.closing }}\n{{ $json.sender }}",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Send",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Custom Instructions",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {
+          "messageButtonLabel": "Thank You"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1740,
+        -120
+      ],
+      "id": "e374a68b-f2f9-4578-8cb8-1e89e546e5d8",
+      "name": "Is Good2",
+      "webhookId": "dee4e014-5dcb-4432-86a1-702bfdbd2d43",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8PS0qVYNzZvoWNA7",
+          "name": "phoenix✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30057d58-536f-43a2-bb09-4d5a14e8fb85",
+              "name": "subject",
+              "value": "={{ $json.output.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "3e1af575-0260-4238-8094-af85da70db61",
+              "name": "greeting",
+              "value": "={{ $json.output.greeting }}",
+              "type": "string"
+            },
+            {
+              "id": "4e1f4b74-04a6-4718-a3c3-52e9f0a62049",
+              "name": "message",
+              "value": "={{ $json.output.message }}",
+              "type": "string"
+            },
+            {
+              "id": "94303443-f726-4dce-9789-da5ea2903749",
+              "name": "closing",
+              "value": "={{ $json.output.closing }}",
+              "type": "string"
+            },
+            {
+              "id": "05cc4a5c-e76a-473e-b56e-81cda0ecf41b",
+              "name": "sender",
+              "value": "={{ $json.output.sender }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1180,
+        -160
+      ],
+      "id": "061737c2-3e95-409f-a62e-bbe69731739d",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "74484333-bb9f-4060-8e4e-90f5046a6876",
+              "leftValue": "={{ $json.output.subject }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2220,
+        -540
+      ],
+      "id": "7b796148-a07c-4a76-99a1-f73307eeeaaf",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4d01aa8a-c3fc-4693-9649-3b51f081769c",
+              "name": "subject",
+              "value": "={{ $('Edit Fields').item.json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "7795ea2d-bbb1-4f04-8ae1-9a23a72e86e9",
+              "name": "greeting",
+              "value": "={{ $('Edit Fields').item.json.greeting }}",
+              "type": "string"
+            },
+            {
+              "id": "de371d69-b638-4aa1-992b-819510cd7d2f",
+              "name": "message",
+              "value": "={{ $('Edit Fields').item.json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "4fe2bbcd-9db6-44f8-90e4-fc3d350ed25c",
+              "name": "closing",
+              "value": "={{ $('Edit Fields').item.json.closing }}",
+              "type": "string"
+            },
+            {
+              "id": "65266fb7-8d8a-4088-b73c-39f2926b7abd",
+              "name": "sender",
+              "value": "={{ $('Edit Fields').item.json.sender }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        -380
+      ],
+      "id": "b86471c2-64b2-4259-a4a7-1080fa4dcaf3",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1860,
+        -560
+      ],
+      "id": "f0b4c778-e39b-47f2-875d-b58723644fa6",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "74484333-bb9f-4060-8e4e-90f5046a6876",
+              "leftValue": "={{ $json.data.Send }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1900,
+        -120
+      ],
+      "id": "17e1e66e-7c67-4af1-80f3-bde04f9a3a36",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "sendTo": "kimothozacharia5@gmail.com",
+        "subject": "=",
+        "message": "={{ $json.greeting }}\n\n{{ $json.message }}\n\n{{ $json.closing }}\n{{ $json.sender }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2200,
+        260
+      ],
+      "id": "b225be15-1e39-47cf-bd46-6d0aab95c89d",
+      "name": "Is Good3",
+      "webhookId": "dee4e014-5dcb-4432-86a1-702bfdbd2d43",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8PS0qVYNzZvoWNA7",
+          "name": "phoenix✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1da1d1d7-28fd-442b-bc90-8c55c4af3b16",
+              "name": "subject",
+              "value": "={{ $('Edit Fields1').item.json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "b70a5528-e204-467e-8a9f-c923f526b74a",
+              "name": "greeting",
+              "value": "={{ $('Edit Fields1').item.json.greeting }}",
+              "type": "string"
+            },
+            {
+              "id": "f5d5ffbb-5faa-4142-872c-4cc2bcb83874",
+              "name": "message",
+              "value": "={{ $('Edit Fields1').item.json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "f80c54a9-991f-40c3-9ae6-4ed5b97beec2",
+              "name": "closing",
+              "value": "={{ $('Edit Fields1').item.json.closing }}",
+              "type": "string"
+            },
+            {
+              "id": "87509d5f-0c43-4500-8e48-306f48ee0b28",
+              "name": "sender",
+              "value": "={{ $('Edit Fields1').item.json.sender }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2140,
+        -80
+      ],
+      "id": "0f3b6e8c-e2b6-4d83-8d42-4f1d5fedbdd6",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        360,
+        -260
+      ],
+      "id": "e7044dec-b89d-47c1-b460-f5b950f4b682",
+      "name": "Set global"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Meeting title : {{$('Send thank you').item.json.title }}\noverview: {{ $('Send thank you').item.json.overview }}\n\n\nWe have drafterd this email copy as a thank you not to them: \n\n{{ $('Edit Fields').item.json.greeting }}\n\n{{ $('Edit Fields').item.json.message }}\n{{ $('Edit Fields').item.json.closing }}\n\n{{ $('Edit Fields').item.json.sender }}\n\n\nWe need to recreate this email copy to make it better than the copy that we created.\n\nThe user can also add their request to it as below. Make sure you implement their request as best as posible\n{{ $json.data['Custom Instructions'] }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a helpful assistant. Your task is to recreate the personalized thank you notes to make them better than they are. This will be a very simple Thank you note that we send to a user after each call\n\nDon't sound generic or use phrases like \" I hope this email finds you well\"\n\nFor all these meetings, I am the organizer : I Zacharia Kimotho and will be the one sending all these follow ups \n\n\nJust have the body part for the email"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        860,
+        -160
+      ],
+      "id": "bdf156d2-a7b8-48a3-8f78-18920fa2e9b5",
+      "name": "Rewrite Thank you note",
+      "retryOnFail": true,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "ba3498a1-a157-43d4-b2b3-db850a5c9ad4",
+      "typeVersion": 1.1,
+      "name": "Send thank you",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -300,
+        -260
+      ]
+    }
+  ],
+  "pinData": {
+    "Thank you for the call": [
+      {
+        "json": {
+          "output": {
+            "subject": "Thank You for Our Discovery Call!",
+            "greeting": "Hi Hassan,",
+            "message": "Thank you for taking the time to connect with me today! I’m really excited about the potential collaboration on AI and automation projects for your dental practice. Your insights into the automation needs for Google Ads, Facebook Ads, and CRM integration were incredibly helpful. I appreciate your enthusiasm in wanting to be a part of the process, and I look forward to working together to streamline your marketing tasks with the multi-layered agent system we discussed.\n\nLooking forward to kicking things off next Monday!\n\nBest regards,",
+            "closing": "Cheers,",
+            "sender": "Zacharia Kimotho"
+          }
+        }
+      }
+    ],
+    "Is Good": [
+      {
+        "json": {
+          "data": {
+            "Send": "No",
+            "Custom Instructions": "It was good chatting about the MT kenya hike\r\n\r\nAsk when we can start the project apart from monday\r\n"
+          }
+        }
+      }
+    ],
+    "Rewrite Thank you note": [
+      {
+        "json": {
+          "output": {
+            "subject": "Thank You for Our Productive Discovery Call",
+            "greeting": "Hi Hassan,",
+            "message": "I just wanted to express my gratitude for our engaging conversation today! I’m truly excited about the collaboration opportunities we have ahead, especially in integrating AI and automation into your dental practice. Your perspectives on the automation needs for Google Ads, Facebook Ads, and CRM integration provided great clarity, and I’m enthusiastic about your eagerness to participate in this journey. \n\nI also enjoyed discussing the MT Kenya hike with you—it's always refreshing to connect over shared interests! \n\nAs we prepare to kick things off, I’d love to know if there’s any flexibility to start the project before Monday, or if there’s a specific timeline you had in mind. Looking forward to your thoughts!",
+            "closing": "Best regards,",
+            "sender": "Zacharia Kimotho"
+          }
+        }
+      }
+    ],
+    "Send thank you": [
+      {
+        "json": {
+          "meeting_attendees": [],
+          "keywords": [
+            "Automation",
+            "AI agents",
+            "Marketing",
+            "Dental practice",
+            "Nan",
+            "Collaboration"
+          ],
+          "action_items": "\n**Hassan Hamid**\nWhatsApp Zacharia to organize the work schedule (10:19)\nMake initial payment for half of the agreed 15 hours (09:33)\nPrepare and share detailed briefs on automation requirements (13:33)\n\n**Zacharia Kimotho**\nShare portfolio and specific use cases with Hassan (11:10)\nStart working on the project on Monday (09:55)\nReview Hassan's detailed brief and prepare for the first session (17:24)\n",
+          "outline": null,
+          "shorthand_bullet": "🤝 **Introduction and Project Scope** (00:03 - 05:28)\nHassan found Zacharia's profile using Nan's template\nHassan seeks collaboration on AI and automation projects for his dental practice\nZacharia has been using Nan full-time since April 2022\nHassan wants to learn and be part of the process\nZacharia charges $50 per hour for development work\n💼 **Contract and Schedule Discussion** (05:28 - 09:24)\nHassan proposes 10 hours of work to start\nAgreed on $45 per hour for 15 hours\nPayment to be made half upfront, half after completion\nPayPal chosen as the payment method\nPlanned start date: Monday\nHassan requests to see Zacharia's best workflow examples\n🛠️ **Project Requirements and Use Cases** (09:24 - 18:49)\nHassan interested in automations for Google Ads, Facebook Ads, and social media posting\nHassan shares detailed brief on CRM integration and marketing automation\nHassan presents comprehensive list of departments and tasks to automate\nDiscussion on creating multi-layered agent system for various marketing tasks\nHassan explains need for agents to interact with each other and connect to a central database\n",
+          "overview": "In the Discovery Call and Project Planning meeting between Zacharia Kimotho and Hassan Hamid, the two professionals introduced themselves and discussed potential collaboration on AI and automation projects for Hassan's dental practice. Hassan, who found Zacharia through Nan's template, expressed his desire to learn and actively participate in the process, which led to the agreement on a rate of $45 per hour for a proposed starting workload of 15 hours. They confirmed payment terms of half upfront and half upon completion, with plans to begin work the following Monday. The conversation then transitioned to project specifics, with Hassan detailing automation needs for Google Ads, Facebook Ads, and social media, as well as CRM integration. They outlined a vision for a multi-layered agent system to streamline various marketing tasks, emphasizing the need for agents to interact with a central database. Action items were designated for both participants, including Hassan’s preparations for initial payments and project briefs, and Zacharia’s responsibility to share his portfolio and begin the project promptly.",
+          "bullet_gist": "🤝 Collaboration Agreement: Zacharia and Hassan agreed on a collaborative project focused on AI and automation for dental marketing.\n💵 Payment Terms: They set payment terms of $45 per hour, with half upfront and half upon project completion.\n📅 Project Timeline: Work is scheduled to begin the following Monday, with defined action items for both participants.\n📈 Automation Needs: Hassan detailed his requirements for automating Google Ads, Facebook Ads, and CRM integration.\n🗂️ Project Structure: They discussed the vision for a multi-layered agent system to streamline marketing tasks.",
+          "gist": "Zacharia Kimotho and Hassan Hamid discussed collaboration on AI and automation projects for Hassan's dental practice.",
+          "short_summary": "Zacharia Kimotho and Hassan Hamid met to explore potential collaboration on AI and automation projects tailored for Hassan's dental practice. Hassan, who discovered Zacharia via Nan's template, expressed eagerness to be involved in the process, leading to an agreement on a rate of $45 per hour for an initial workload of 15 hours. They established payment terms of 50% upfront and 50% upon project completion, with a start date set for the following Monday. The conversation then shifted to project specifics, including Hassan's needs for automation in Google Ads, Facebook Ads, social media, and CRM integration. They envisioned a multi-layered agent system to enhance marketing efficiency, highlighting the importance of agents interacting with a central database. Action items were assigned, with Hassan tasked to prepare initial payments and project briefs, while Zacharia would share his portfolio and commence work promptly.",
+          "short_overview": null,
+          "meeting_type": null,
+          "topics_discussed": null,
+          "transcript_chapters": [],
+          "title": "Introductions and Discovery Call between Zacharia Kimotho and Hassan Hamid",
+          "id": "01JKWXT9JN6J0A0HSYPR8WXB1Q",
+          "meeting_attendees_email": [
+            "hnhamid25@gmail.com",
+            "kimothozacharia5@gmail.com"
+          ]
+        }
+      }
+    ]
+  },
+  "connections": {
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Thank you for the call",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Auto-fixing Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Thank you for the call",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser1": {
+      "ai_outputParser": [
+        []
+      ]
+    },
+    "Thank you for the call": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Set global",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Rewrite Thank you note",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Auto-fixing Output Parser2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser2",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Rewrite Thank you note",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Good": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rewrite Thank you note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Set global",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Good2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Is Good1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set global": {
+      "main": [
+        [
+          {
+            "node": "Is Good",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        []
+      ]
+    },
+    "Rewrite Thank you note": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send thank you": {
+      "main": [
+        [
+          {
+            "node": "Thank you for the call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "153f1a00-ec03-4b6b-b7c6-9205787a8cb4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db80165df40cb07c0377167c050b3f9ab0b0fb04f0e8cae0dc53f5a8527103ca"
+  },
+  "id": "keBBR2UrfQXEL81u",
+  "tags": []
+}

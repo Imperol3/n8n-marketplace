@@ -3,10 +3,15 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from 'path';
-import { initializeUploadDirectory } from './initUploadDir';
+import fs from 'fs';
+import { migrateUploads, PERSISTENT_UPLOAD_DIR, PUBLIC_UPLOAD_DIR } from './migrateUploads';
 
-// Initialize upload directory at startup
-initializeUploadDirectory();
+// Run comprehensive file system migration on startup
+// This ensures all uploaded files are properly synchronized between
+// persistent and public directories for maximum resilience
+console.log('------------------------------------------------------');
+console.log('Starting file system migration for persistent uploads...');
+migrateUploads();
 
 const app = express();
 app.use(express.json());
@@ -46,21 +51,65 @@ app.use((req, res, next) => {
   const server = await registerRoutes(app);
 
   // First try to serve from the public uploads directory
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
-    fallthrough: true // Enable falling through for missing files
+  app.use('/uploads', express.static(PUBLIC_UPLOAD_DIR, {
+    fallthrough: true, // Enable falling through for missing files
+    index: false,      // Disable directory listing for security
+    maxAge: '1d'       // Add cache headers for better performance
   }));
   
   // Then try the persistent storage directory
-  app.use('/uploads', express.static(path.join(process.cwd(), '.data', 'uploads'), {
-    fallthrough: true // Enable falling through for missing files
+  app.use('/uploads', express.static(PERSISTENT_UPLOAD_DIR, {
+    fallthrough: true, // Enable falling through for missing files
+    index: false,      // Disable directory listing for security
+    maxAge: '1d'       // Add cache headers for better performance
   }));
+
+  // Create a file recovery middleware to attempt repair of missing files
+  app.use('/uploads', (req, res, next) => {
+    const requestedFile = path.basename(req.path);
+    
+    // Skip empty paths
+    if (!requestedFile) {
+      return next();
+    }
+    
+    const persistentPath = path.join(PERSISTENT_UPLOAD_DIR, requestedFile);
+    const publicPath = path.join(PUBLIC_UPLOAD_DIR, requestedFile);
+    
+    // Check if file exists in persistent storage but not in public
+    if (fs.existsSync(persistentPath) && !fs.existsSync(publicPath)) {
+      try {
+        // Copy from persistent to public
+        fs.copyFileSync(persistentPath, publicPath);
+        console.log(`Repaired missing file in public directory: ${requestedFile}`);
+        
+        // Serve the newly copied file
+        return res.sendFile(publicPath);
+      } catch (error) {
+        console.error(`Failed to repair file ${requestedFile}:`, error);
+      }
+    }
+    
+    // Continue to 404 handler if file not found or repair failed
+    next();
+  });
 
   // Handle 404 errors for images
   app.use('/uploads', (req, res, next) => {
-    console.log(`File not found in either location: ${req.path}`);
-    res.status(404).json({
-      error: 'Image not found',
-      path: req.path
+    const requestedFile = path.basename(req.path);
+    
+    if (requestedFile) {
+      console.log(`File not found in either location: ${requestedFile}`);
+      return res.status(404).json({
+        error: 'Image not found',
+        path: req.path
+      });
+    }
+    
+    // Prevent directory listing
+    res.status(403).json({
+      error: 'Access denied',
+      message: 'Directory listing is not allowed'
     });
   });
 

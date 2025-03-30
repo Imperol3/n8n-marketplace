@@ -2,10 +2,23 @@ import fs from 'fs/promises';
 import path from 'path';
 import { randomBytes } from 'crypto';
 import fsSync from 'fs';
+import { 
+  PERSISTENT_UPLOAD_DIR, 
+  PUBLIC_UPLOAD_DIR 
+} from '../migrateUploads';
 
-// Create uploads directory if it doesn't exist - Use a persistent directory
-// For Replit, we should use the .data directory which persists across restarts
-const UPLOADS_DIR = path.join(process.cwd(), '.data', 'uploads');
+// Create a logger for file operations with timestamps
+const fileLogger = {
+  log: (message: string) => {
+    console.log(`[FileStorage] ${new Date().toISOString()} - ${message}`);
+  },
+  error: (message: string, error?: any) => {
+    console.error(`[FileStorage] ${new Date().toISOString()} - ERROR: ${message}`, error || '');
+  },
+  info: (message: string) => {
+    console.info(`[FileStorage] ${new Date().toISOString()} - INFO: ${message}`);
+  }
+};
 
 export class FileStorage {
   private static instance: FileStorage;
@@ -26,85 +39,195 @@ export class FileStorage {
     try {
       // Create the uploads directory synchronously to ensure it exists
       // before any file operations happen
-      if (!fsSync.existsSync(UPLOADS_DIR)) {
-        fsSync.mkdirSync(UPLOADS_DIR, { recursive: true });
+      if (!fsSync.existsSync(PERSISTENT_UPLOAD_DIR)) {
+        fsSync.mkdirSync(PERSISTENT_UPLOAD_DIR, { recursive: true });
+        fileLogger.info(`Created persistent upload directory: ${PERSISTENT_UPLOAD_DIR}`);
       }
       
-      // Create a symlink from /uploads to our persistent storage if it doesn't exist
-      const publicUploadsDir = path.join(process.cwd(), 'uploads');
+      // Create public uploads directory
+      const publicUploadsDir = PUBLIC_UPLOAD_DIR;
       try {
         await fs.access(publicUploadsDir);
       } catch {
         // If uploads folder doesn't exist in the root, create it
-        // or create a symlink to the persistent directory
         try {
           if (fsSync.existsSync(publicUploadsDir)) {
             // If it exists but is not accessible, try to fix permissions
             fsSync.chmodSync(publicUploadsDir, 0o755);
+            fileLogger.info(`Fixed permissions on public upload directory: ${publicUploadsDir}`);
           } else {
-            // On Replit, symlinks might not work well - so we'll create a directory
-            // and later ensure we serve files from the right location
+            // Create public directory
             fsSync.mkdirSync(publicUploadsDir, { recursive: true });
+            fileLogger.info(`Created public upload directory: ${publicUploadsDir}`);
           }
         } catch (err) {
-          console.error('Error creating uploads directory:', err);
+          fileLogger.error('Error creating uploads directory:', err);
         }
       }
     } catch (error) {
-      console.error('Error initializing uploads directory:', error);
+      fileLogger.error('Error initializing uploads directory:', error);
     }
   }
 
+  /**
+   * Save a file to both persistent and public storage
+   */
   async saveFile(file: Buffer, originalName: string): Promise<string> {
-    const fileExt = path.extname(originalName);
-    const fileName = `${randomBytes(16).toString('hex')}${fileExt}`;
-    const filePath = path.join(UPLOADS_DIR, fileName);
-    
-    // Save to persistent storage
-    await fs.writeFile(filePath, file);
-    
-    // Copy the file to the public uploads directory for easier access
-    const publicPath = path.join(process.cwd(), 'uploads', fileName);
     try {
-      await fs.copyFile(filePath, publicPath);
+      // Generate a unique filename
+      const fileExt = path.extname(originalName);
+      const sanitizedName = path.basename(originalName, fileExt)
+        .replace(/[^a-zA-Z0-9]/g, '-')
+        .replace(/-{2,}/g, '-')
+        .toLowerCase();
+      const uniqueId = randomBytes(8).toString('hex');
+      const fileName = `${Date.now()}-${uniqueId}-${sanitizedName}${fileExt}`;
+      
+      // Create paths
+      const persistentPath = path.join(PERSISTENT_UPLOAD_DIR, fileName);
+      const publicPath = path.join(PUBLIC_UPLOAD_DIR, fileName);
+      
+      // Save to persistent storage first
+      await fs.writeFile(persistentPath, file);
+      fileLogger.info(`Saved file to persistent storage: ${fileName}`);
+      
+      // Copy the file to the public uploads directory
+      try {
+        await fs.copyFile(persistentPath, publicPath);
+        fileLogger.info(`Copied file to public directory: ${fileName}`);
+      } catch (error) {
+        fileLogger.error(`Error copying file to public directory: ${fileName}`, error);
+        
+        // If copy fails, try again with synchronous method
+        try {
+          fsSync.copyFileSync(persistentPath, publicPath);
+          fileLogger.info(`Retry successful: Copied file to public directory with sync method: ${fileName}`);
+        } catch (syncError) {
+          fileLogger.error(`Sync copy also failed for file: ${fileName}`, syncError);
+        }
+      }
+      
+      return `/uploads/${fileName}`;
     } catch (error) {
-      console.error('Error copying file to public directory:', error);
+      fileLogger.error(`Failed to save file: ${originalName}`, error);
+      throw new Error(`Failed to save file: ${error instanceof Error ? error.message : String(error)}`);
     }
-    
-    return `/uploads/${fileName}`;
   }
 
+  /**
+   * Delete a file from both persistent and public storage
+   */
   async deleteFile(filePath: string): Promise<void> {
-    if (!filePath.startsWith('/uploads/')) return;
-    
-    const fileName = path.basename(filePath);
-    const persistentPath = path.join(UPLOADS_DIR, fileName);
-    const publicPath = path.join(process.cwd(), filePath);
+    if (!filePath || !filePath.startsWith('/uploads/')) {
+      fileLogger.error(`Invalid file path for deletion: ${filePath}`);
+      return;
+    }
     
     try {
-      // Try to delete from both locations
-      await fs.unlink(persistentPath).catch(err => 
-        console.error('Error deleting from persistent storage:', err));
-      await fs.unlink(publicPath).catch(err => 
-        console.error('Error deleting from public directory:', err));
+      const fileName = path.basename(filePath);
+      const persistentPath = path.join(PERSISTENT_UPLOAD_DIR, fileName);
+      const publicPath = path.join(PUBLIC_UPLOAD_DIR, fileName);
+      
+      // Check if files exist before attempting deletion
+      const persistentExists = fsSync.existsSync(persistentPath);
+      const publicExists = fsSync.existsSync(publicPath);
+      
+      // Delete from persistent storage
+      if (persistentExists) {
+        await fs.unlink(persistentPath);
+        fileLogger.info(`Deleted file from persistent storage: ${fileName}`);
+      } else {
+        fileLogger.info(`File not found in persistent storage: ${fileName}`);
+      }
+      
+      // Delete from public directory
+      if (publicExists) {
+        await fs.unlink(publicPath);
+        fileLogger.info(`Deleted file from public directory: ${fileName}`);
+      } else {
+        fileLogger.info(`File not found in public directory: ${fileName}`);
+      }
     } catch (error) {
-      console.error('Error deleting file:', error);
+      fileLogger.error(`Error deleting file: ${filePath}`, error);
     }
   }
 
+  /**
+   * Get the absolute path to a file, checking both locations
+   */
   getAbsolutePath(filePath: string): string {
-    if (!filePath.startsWith('/uploads/')) throw new Error('Invalid file path');
-    
-    const fileName = path.basename(filePath);
-    // First check if the file exists in the public directory
-    const publicPath = path.join(process.cwd(), filePath);
-    
-    if (fsSync.existsSync(publicPath)) {
-      return publicPath;
+    if (!filePath || !filePath.startsWith('/uploads/')) {
+      fileLogger.error(`Invalid file path requested: ${filePath}`);
+      throw new Error('Invalid file path');
     }
     
-    // If not, use the persistent path
-    return path.join(UPLOADS_DIR, fileName);
+    try {
+      const fileName = path.basename(filePath);
+      
+      // First check if the file exists in the public directory
+      const publicPath = path.join(PUBLIC_UPLOAD_DIR, fileName);
+      if (fsSync.existsSync(publicPath)) {
+        return publicPath;
+      }
+      
+      // If not, check the persistent directory
+      const persistentPath = path.join(PERSISTENT_UPLOAD_DIR, fileName);
+      if (fsSync.existsSync(persistentPath)) {
+        // If it exists in persistent but not public, copy it to public for future use
+        try {
+          fsSync.copyFileSync(persistentPath, publicPath);
+          fileLogger.info(`Auto-copied missing file to public directory: ${fileName}`);
+        } catch (error) {
+          fileLogger.error(`Failed to copy file to public directory: ${fileName}`, error);
+        }
+        return persistentPath;
+      }
+      
+      // If file doesn't exist in either location, throw an error
+      fileLogger.error(`File not found in any location: ${fileName}`);
+      throw new Error(`File not found: ${fileName}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('File not found:')) {
+        throw error;
+      }
+      fileLogger.error(`Error getting absolute path: ${filePath}`, error);
+      throw new Error(`Error accessing file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  /**
+   * List all files in storage
+   */
+  listFiles(): string[] {
+    try {
+      // Get files from persistent storage as the source of truth
+      return fsSync.readdirSync(PERSISTENT_UPLOAD_DIR);
+    } catch (error) {
+      fileLogger.error('Error listing files', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Get file information
+   */
+  getFileInfo(fileName: string): { size: number; created: Date } | null {
+    try {
+      const filePath = path.join(PERSISTENT_UPLOAD_DIR, fileName);
+      
+      if (!fsSync.existsSync(filePath)) {
+        return null;
+      }
+      
+      const stats = fsSync.statSync(filePath);
+      return {
+        size: stats.size,
+        created: stats.birthtime
+      };
+    } catch (error) {
+      fileLogger.error(`Error getting file info: ${fileName}`, error);
+      return null;
+    }
   }
 }
 

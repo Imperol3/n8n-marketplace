@@ -1,0 +1,4138 @@
+{
+  "name": "Lead Enrichment",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e9a2a36e-de91-462d-a2e5-91ce001aca7d",
+              "name": "email",
+              "value": "={{ $json.email.value }}",
+              "type": "string"
+            },
+            {
+              "id": "fa10dfee-325e-4d92-819c-11e103d9794a",
+              "name": "firstname",
+              "value": "={{ $json.firstname.value }}",
+              "type": "string"
+            },
+            {
+              "id": "c8cc7028-c7fb-4c3f-a02b-5b58bca7bf7d",
+              "name": "domain",
+              "value": "={{ $json.email.value.extractDomain() }}",
+              "type": "string"
+            },
+            {
+              "id": "58911841-e624-4756-a29b-9f1b0465c397",
+              "name": "linkedin_profile",
+              "value": "={{ $json.linkedin_profile.value }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        280,
+        -1140
+      ],
+      "id": "754d907e-0d6f-4f60-ac10-81ce7cf6584b",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "26e49c67-a23b-4551-9259-895ab553b6fd",
+              "name": "domain",
+              "value": "={{ \"https://\" + $json.domain }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        780,
+        -1460
+      ],
+      "id": "4295e6c4-70a3-4482-9dc7-ec407e4452ea",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const excludedDomains = [\n  'gmail.com',       // Google\n  'outlook.com',     // Microsoft\n  'yahoo.com',       // Yahoo\n  'titan.email',     // Titan\n  'icloud.com',      // Apple\n  'hotmail.com',     // Microsoft\n  'aol.com',         // AOL\n  'zoho.com',        // Zoho Mail\n  'protonmail.com',  // ProtonMail\n  'mail.com',        // Mail.com\n];\n\nconst filteredData = [];\nfor (let item of items) {\n  const domain = item.json.domain;  // Accessing the domain field\n  if (!excludedDomains.includes(domain)) {\n    filteredData.push(item);  // Only push if the domain is NOT in the excluded list\n  }\n}\n\nreturn filteredData;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        -1460
+      ],
+      "id": "5f68bd1e-83ea-4714-be7b-66fc076fad6a",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ai-content-scraper.p.rapidapi.com/scrape",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-rapidapi-host",
+              "value": "ai-content-scraper.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "909f26c876msha6b10750eb7b52ep1f7e0bjsnad1fb04c485f"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json['business-website'].extractDomain() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6fb78061-77d1-45f7-bb7c-9385225fbbd1",
+      "name": "scrape_website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        580,
+        -1720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// This gets the incoming items from the previous node\nconst items = $input.all();  // Fetch all items from the previous node\n\n// Function to clean the content by removing markdown and unwanted elements\nfunction cleanContent(content) {\n  // Example: Removing markdown image syntax, excessive newlines, and trimming the content\n  return content\n    .replace(/!\\[.*?\\]\\(.*?\\)/g, '')  // Removes markdown images\n    .replace(/\\n+/g, '\\n')            // Replaces multiple newlines with a single newline\n    .trim();                          // Trims any leading or trailing spaces\n}\n\n// Initialize an array to store the cleaned data\nlet returnData = [];\n\n// Process each item dynamically based on the input from the previous node\nfor (let i = 0; i < items.length; i++) {\n  const content = items[i].json.content || '';         // Get content, fallback to empty string if undefined\n  const description = items[i].json.description || ''; // Get description, fallback to empty string if undefined\n  \n  const cleanedContent = cleanContent(content);  // Clean the content\n\n  // Push the cleaned content and description into the return data array\n  returnData.push({\n    json: {\n      cleanedContent: cleanedContent,\n      description: description\n    }\n  });\n}\n\n// Return the cleaned data to n8n\nreturn returnData;\n"
+      },
+      "id": "e72ac9f3-bcb9-405d-a750-eab17c125c7c",
+      "name": "cleaned_content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        -1720
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {}
+      },
+      "id": "cad43c07-d5e6-4a00-8464-892d784795bc",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        -1240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "1JBBIaXSHGKDHZKq",
+          "name": "Openrouter✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "c8dd06e6-3b9b-42f8-a7b8-8b01fc5855bc",
+      "name": "Summarization Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainSummarization",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        -1460
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        940,
+        -1460
+      ],
+      "id": "3411ce00-e7d2-4b2f-b5f5-f5fc628326c1",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "62285984-1cbb-4e95-8349-2c47ec1d5580",
+              "name": "website data",
+              "value": "={{ $json.response.text }}",
+              "type": "string"
+            },
+            {
+              "id": "d3b9554a-c0de-4597-af3b-1df57e7f6d7b",
+              "name": "id",
+              "value": "={{ $('Edit Fields1').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "acfaf591-1088-4cc5-b593-419163f1e6e7",
+              "name": "email",
+              "value": "={{ $('Edit Fields').item.json.email }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        -1460
+      ],
+      "id": "26112835-981a-412a-b2dc-e9654cf57aa0",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "url": "=https://fresh-linkedin-profile-data.p.rapidapi.com/get-linkedin-profile?linkedin_url={{ $json.linkedinURL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "fresh-linkedin-profile-data.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "909f26c876msha6b10750eb7b52ep1f7e0bjsnad1fb04c485f"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bead80eb-0144-4fa7-8960-4dfe00c2755b",
+      "name": "scrape_linkedin_profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1240,
+        -1100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// This gets the incoming items from the previous node\nconst items = $input.all();  // Fetch all items from the previous node\n\n// Function to clean the content and extract only the relevant information from experiences\nfunction extractExperienceDetails(experience) {\n  const title = experience.title || 'Unknown Role';\n  const company = experience.company || 'Unknown Company';\n  const startYear = experience.start_year || 'Unknown Start Year';\n  const endYear = experience.is_current ? 'Present' : (experience.end_year || 'Unknown End Year');  // Handles current roles\n  const duration = experience.duration || '';\n\n  return `${title} at ${company} (${startYear} - ${endYear}) - ${duration}`.trim();\n}\n\n// Initialize an array to store the cleaned data\nlet returnData = [];\n\n// Process each item dynamically based on the input from the previous node\nfor (let i = 0; i < items.length; i++) {\n  const data = items[i].json.data || {};  // Get the main data object from the item, fallback to an empty object if undefined\n  const about = data.about || '';         // Get the 'about' section content, fallback to an empty string if undefined\n  const headline = data.headline || '';   // Get the headline content, fallback to an empty string if undefined\n  const experiences = data.experiences || [];  // Get the experiences array, fallback to an empty array if undefined\n\n  // Clean the content from 'about' and 'headline' sections\n  const cleanedAbout = about.replace(/\\n+/g, ' ').trim();\n  const cleanedHeadline = headline.replace(/\\n+/g, ' ').trim();\n\n  // Clean and extract key details (role, company, years) from each experience\n  let cleanedExperiences = experiences.map(exp => extractExperienceDetails(exp));\n\n  // Identify the current position (if any), using \"-present\" in the experience\n  let currentPosition = null;\n  for (let exp of experiences) {\n    if (exp.is_current) {\n      const title = exp.title || 'Unknown Role';\n      const company = exp.company || 'Unknown Company';\n      const startYear = exp.start_year || 'Unknown Start Year';\n      currentPosition = `${title} at ${company} (${startYear} - Present)`;\n      break;  // Assuming only one current position, so we can exit after finding it\n    }\n  }\n\n  // Push the cleaned content into the return data array inside the 'response' -> 'scraped_linkedin_info' field\n  returnData.push({\n    json: {\n      response: {\n        scraped_linkedin_info: {\n          cleanedAbout: cleanedAbout,\n          cleanedHeadline: cleanedHeadline,\n          cleanedExperiences: cleanedExperiences,\n          currentPosition: currentPosition // Add current position information\n        }\n      }\n    }\n  });\n}\n\n// Return the cleaned data to n8n\nreturn returnData;\n"
+      },
+      "id": "792c0688-c9a2-4887-920e-4e4447bcf8f5",
+      "name": "Code1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        -1100
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -1100
+      ],
+      "id": "2304192c-1ba3-4831-ba23-297dc697c7af",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1f6e8007-3d47-40b1-b880-62c7d0e60a36",
+              "name": "About",
+              "value": "={{ $json.response.scraped_linkedin_info.cleanedAbout }}",
+              "type": "string"
+            },
+            {
+              "id": "e6ae90c6-8d03-4f0d-b5e0-c94e75904017",
+              "name": "Headline",
+              "value": "={{ $json.response.scraped_linkedin_info.cleanedHeadline }}",
+              "type": "string"
+            },
+            {
+              "id": "e5918f99-880e-4196-a78d-afd0abd8fdd9",
+              "name": "Experiences",
+              "value": "={{ $json.response.scraped_linkedin_info.cleanedExperiences }}",
+              "type": "array"
+            },
+            {
+              "id": "2224cb5c-ea2d-4c9a-a24c-439a4461821f",
+              "name": "currentPosition",
+              "value": "={{ $json.response.scraped_linkedin_info.currentPosition }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1580,
+        -1100
+      ],
+      "id": "816f399f-5db8-4faa-9c7a-fd5229aa067a",
+      "name": "Set about"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "74d6b4d3-41c4-41dd-896c-d65e9cae543d",
+              "leftValue": "={{ $json.linkedin_profile }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        620,
+        -1100
+      ],
+      "id": "14871a17-0062-49cc-9c69-4d442f58354d",
+      "name": "Filter linkedin profiles"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b05cfb64-2a37-41d8-a0f8-4f2f0dd46c7b",
+              "name": "linkedinURL",
+              "value": "={{ $json.linkedin_profile }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "675da147-0896-40a7-9eaf-4b1fdaff6cf1",
+      "name": "map fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1000,
+        -1100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Enrich with website data",
+        "height": 260,
+        "width": 1700
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        480,
+        -1560
+      ],
+      "typeVersion": 1,
+      "id": "8a37e890-3779-4379-a94d-f681c613a504",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Enrich with linkedin data",
+        "height": 320,
+        "width": 1460
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        520,
+        -1140
+      ],
+      "typeVersion": 1,
+      "id": "f4c8628f-7e38-4d4c-8a98-f8aaefa98579",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a8de83da-bb4a-4627-8828-4c58841f987a",
+              "name": "meeting",
+              "value": "={{ $json.payload.title }}",
+              "type": "string"
+            },
+            {
+              "id": "e1a40be8-67c1-4126-8965-3e09cdace70a",
+              "name": "name",
+              "value": "={{ $json.payload.responses.name.value }}",
+              "type": "string"
+            },
+            {
+              "id": "2482ac54-3754-4de7-ad3b-50af035af0bd",
+              "name": "email",
+              "value": "={{ $json.payload.responses.email.value }}",
+              "type": "string"
+            },
+            {
+              "id": "791b1125-0ee3-40a9-b00b-ab198f8f07a1",
+              "name": "business-website",
+              "value": "={{ $json.payload.responses['business-website'].value }}",
+              "type": "string"
+            },
+            {
+              "id": "4103a5f0-d54c-4a9e-b356-24188589baab",
+              "name": "agenda",
+              "value": "={{ $json.payload.responses.agenda.value }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        60,
+        -1140
+      ],
+      "id": "222a7fda-2690-4551-a5b8-c4d14eb0b892",
+      "name": "edit objects"
+    },
+    {
+      "parameters": {
+        "path": "3e4b6321-5d89-4206-b14b-0be28dbe31ea",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -360,
+        -1140
+      ],
+      "id": "885839eb-c90a-4e5e-8e7d-489d84887ea4",
+      "name": "Webhook",
+      "webhookId": "3e4b6321-5d89-4206-b14b-0be28dbe31ea",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "=\n {{ $json.body.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -120,
+        -1140
+      ],
+      "id": "20fde080-34df-4c01-a34e-cc6fbb877002",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        300
+      ],
+      "id": "926367f4-54ef-4d3b-b03d-183ae51eb55d",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a198a748-aa2c-43a5-98ad-bd55a58be3e8",
+              "name": "about",
+              "value": "={{ $json.about }}",
+              "type": "string"
+            },
+            {
+              "id": "082e0605-30a0-42d7-b4ea-ba97d6154b1e",
+              "name": "city",
+              "value": "={{ $json.city }}",
+              "type": "string"
+            },
+            {
+              "id": "d56dc2ea-5007-4a81-a697-4f97df746776",
+              "name": "company",
+              "value": "={{ $json.company }}",
+              "type": "string"
+            },
+            {
+              "id": "2aed55a3-5de8-4073-aceb-9000796c2fe4",
+              "name": "company_description",
+              "value": "={{ $json.company_description }}",
+              "type": "string"
+            },
+            {
+              "id": "e26d21a8-1021-461b-9f28-fba49ef0c76d",
+              "name": "company_domain",
+              "value": "={{ $json.company_domain }}",
+              "type": "string"
+            },
+            {
+              "id": "9733b5ab-0509-463e-9d51-4d01682df6a6",
+              "name": "company_employee_range",
+              "value": "={{ $json.company_employee_range }}",
+              "type": "string"
+            },
+            {
+              "id": "3c2e78b5-849d-4b7b-83d8-beaea55dc887",
+              "name": "company_industry",
+              "value": "={{ $json.company_industry }}",
+              "type": "string"
+            },
+            {
+              "id": "32ba2d5a-a6dc-4461-ab4f-c1f4d2522a00",
+              "name": "company_linkedin_url",
+              "value": "={{ $json.company_linkedin_url }}",
+              "type": "string"
+            },
+            {
+              "id": "9af7f1d6-c386-44cc-a32a-95425ca1829b",
+              "name": "company_website",
+              "value": "={{ $json.company_website }}",
+              "type": "string"
+            },
+            {
+              "id": "70aaa0fc-8271-4019-bad2-554397856e14",
+              "name": "connection_count",
+              "value": "={{ $json.connection_count }}",
+              "type": "number"
+            },
+            {
+              "id": "0f279c4f-d4f2-4b96-b0c7-820f161de7c4",
+              "name": "country",
+              "value": "={{ $json.country }}",
+              "type": "string"
+            },
+            {
+              "id": "7148fe3f-268a-4cf5-9267-6ec55bbf967d",
+              "name": "current_company_join_year",
+              "value": "={{ $json.current_company_join_year }}",
+              "type": "number"
+            },
+            {
+              "id": "edfa993e-cb32-4670-a8b1-7ca6d3de6222",
+              "name": "experiences",
+              "value": "={{ $json.experiences }}",
+              "type": "string"
+            },
+            {
+              "id": "ee57f173-a752-4e60-bb7b-ead28cf3290f",
+              "name": "first_name",
+              "value": "={{ $json.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "1fe6db01-29b0-4a09-9fdd-75a8d7996b51",
+              "name": "follower_count",
+              "value": "={{ $json.follower_count }}",
+              "type": "number"
+            },
+            {
+              "id": "51773967-21da-4611-9a07-f2fd63bbb7f0",
+              "name": "full_name",
+              "value": "={{ $json.full_name }}",
+              "type": "string"
+            },
+            {
+              "id": "8fd649b3-bb02-4b37-804e-a03c6b9c8a24",
+              "name": "headline",
+              "value": "={{ $json.headline }}",
+              "type": "string"
+            },
+            {
+              "id": "82b440c8-9df8-49c1-8d48-abc576dd9725",
+              "name": "job_title",
+              "value": "={{ $json.job_title }}",
+              "type": "string"
+            },
+            {
+              "id": "b5bd65fa-d7de-4b09-9938-8f30a4dc763d",
+              "name": "linkedin_url",
+              "value": "={{ $json.linkedin_url }}",
+              "type": "string"
+            },
+            {
+              "id": "909ae244-9e1f-456b-98b8-ae5e806ff3a0",
+              "name": "public_id",
+              "value": "={{ $json.public_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        680,
+        300
+      ],
+      "id": "6430ba26-238a-4466-9346-c906ccb664e7",
+      "name": "Edit Fields5"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "authentication": "airtableTokenApi",
+        "baseId": {
+          "__rl": true,
+          "value": "https://airtable.com/app2OBE1J2kRRZNMM/tbl9lsmv5ocybpUkY/viwP4DH86AEwfQfhd?blocks=hide",
+          "mode": "url"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "https://airtable.com/app2OBE1J2kRRZNMM/tbl9lsmv5ocybpUkY/viwP4DH86AEwfQfhd?blocks=hide",
+          "mode": "url"
+        },
+        "triggerField": "Created",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.airtableTrigger",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        320
+      ],
+      "id": "be8df428-6253-4a2c-a6bf-88bc1649ac16",
+      "name": "Airtable Trigger",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CAa937hASXcJZWTv",
+          "name": "Airtable Personal Access Token account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ebfd01a1-9fa0-4709-b9f2-c31084ce1158",
+              "leftValue": "={{ $json.Linkedin }}",
+              "rightValue": "/^https?:\\/\\/(www\\.)?linkedin\\.com\\/(in|pub|company|school)\\/[a-zA-Z0-9-_%]+\\/?$/",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        100,
+        320
+      ],
+      "id": "1a6faf33-67e5-473c-995f-34680207f3a7",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=This is the lead data and a reason they booked they call, an dsome research data from their linkedin and company bio\n\n{{ $json.toJsonString()}}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are Imperol,  helpful assistant whose main task will be to prepaire me for the meetings by researching the prospect we are having the meeting with, creating meeting prep notes with all new leads and meetings data\n\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        900,
+        480
+      ],
+      "id": "1a057990-c3bd-4ba6-be83-6587d151201f",
+      "name": "Meeting prep Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        960,
+        900
+      ],
+      "id": "74a0e1e2-17ef-49de-827d-0c8a4196f141",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Xp5T9q3YYxBIw2nd",
+          "name": "Google Gemini(PaLM) Api account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "base": {
+          "__rl": true,
+          "value": "app2OBE1J2kRRZNMM",
+          "mode": "list",
+          "cachedResultName": "Effibotics CRM",
+          "cachedResultUrl": "https://airtable.com/app2OBE1J2kRRZNMM"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl9lsmv5ocybpUkY",
+          "mode": "list",
+          "cachedResultName": "Appointments & Calls",
+          "cachedResultUrl": "https://airtable.com/app2OBE1J2kRRZNMM/tbl9lsmv5ocybpUkY"
+        },
+        "id": "={{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        -60,
+        320
+      ],
+      "id": "17c7e141-4c71-470e-b79c-8f66d1b53449",
+      "name": "Get lead",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CAa937hASXcJZWTv",
+          "name": "Airtable Personal Access Token account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://fresh-linkedin-profile-data.p.rapidapi.com/get-linkedin-profile-by-salesnavurl",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "linkedin_url",
+              "value": "={{ $json.Linkedin }}"
+            },
+            {
+              "name": "include_skills",
+              "value": "false"
+            },
+            {
+              "name": "include_certifications",
+              "value": "false"
+            },
+            {
+              "name": "include_publications",
+              "value": "false"
+            },
+            {
+              "name": "include_honors",
+              "value": "false"
+            },
+            {
+              "name": "include_volunteers",
+              "value": "false"
+            },
+            {
+              "name": "include_projects",
+              "value": "false"
+            },
+            {
+              "name": "include_patents",
+              "value": "false"
+            },
+            {
+              "name": "include_courses",
+              "value": "false"
+            },
+            {
+              "name": "include_organizations",
+              "value": "false"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "fresh-linkedin-profile-data.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "6b51d0bd70msh6a12c7de7c92733p13451ejsn20c31ae8b8ab"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        540,
+        580
+      ],
+      "id": "4a2e5a72-5e64-40ca-9c24-aa4269b71c12",
+      "name": "account 2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        700
+      ],
+      "id": "93355591-74f3-4b9a-a77c-fce091f07e33",
+      "name": "Auto-fixing Output Parser"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"subject\": \"the subject line\",\n\t\"body\": \"this is the email content as a html\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        1180,
+        880
+      ],
+      "id": "38985210-b101-475b-8650-c268522f87cd",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "sendTo": "kimothozacharia5@gmail.com",
+        "subject": "={{ $json.output.subject }}",
+        "message": "={{ $json.data }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Meeting Prep"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1420,
+        480
+      ],
+      "id": "6a6ae392-0d36-44ad-9139-bf69027f1d16",
+      "name": "Gmail1",
+      "webhookId": "118b29f3-4c59-49c2-a4d3-18ff260c558b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8PS0qVYNzZvoWNA7",
+          "name": "phoenix✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "markdownToHtml",
+        "markdown": "={{ $json.output.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        480
+      ],
+      "id": "b12be811-6180-445d-ac86-2c36985e3b2b",
+      "name": "Markdown"
+    },
+    {
+      "parameters": {
+        "url": "https://fresh-linkedin-profile-data.p.rapidapi.com/get-linkedin-profile",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "linkedin_url",
+              "value": "={{ $json.Linkedin }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "fresh-linkedin-profile-data.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "bc56303320mshc329509184925c2p1ebc2djsna755f7db9da3"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "bc56303320mshc329509184925c2p1ebc2djsna755f7db9da3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        320
+      ],
+      "id": "a14d15d5-5ec4-4336-8018-6786e8526ccd",
+      "name": "lnkedin data",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        300,
+        580
+      ],
+      "id": "6787e844-0284-47f8-a89b-aee292142025",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\noutput = []\nmax_posts = 10\nlet counter = 0\nfor (const item of $input.all()[0].json.data) {\n  let post = {\n    title: item.article_title,\n    text: item.text\n  }\n  output.push(post)\n  if(counter++ >= max_posts) break;\n}\n\nreturn {\"linkedIn posts\": output};"
+      },
+      "id": "32262d13-f2eb-4ba4-b6f2-6b238d465aa2",
+      "name": "Extract and limit Linkedin",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        560,
+        2420
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=## Me\n- My company name is:  {{ $('Set your company\\'s variables').item.json.your_company_name }}\n- My company's activity is: {{ $('Set your company\\'s variables').item.json.your_company_activity }}\n- My name is: {{ $('Set your company\\'s variables').item.json.your_name }}\n- My email is: {{ $('Set your company\\'s variables').item.json.your_email }}\n\n## My lead:\nHis name: {{ $('Airtable Trigger').item.json.fields.Name }}\n## What I want you to do\n- According to the info about me, and the linkedin posts an twitter post of a user given below, I want you to find a common activity that I could propose to this person and generate a cover letter about it\n- Return ONLY the cover letter and the subject as a json like this:\n{\n  \"subject\": \"\",\n  \"cover_letter\": \"\"\n}\n\nTHe cover letter should be in HTML format\n\n## The Linkedin Posts:\n{{ JSON.stringify($json[\"linkedIn posts\"])}}\n",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a helpful Marketing assistant"
+            }
+          ]
+        }
+      },
+      "id": "0328e51c-0991-44fb-9b5c-d18f41a22d5f",
+      "name": "Generate Subject and cover letter based on match",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        720,
+        2420
+      ],
+      "typeVersion": 1.5
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"subject\": \"\",\n  \"cover_letter\": \"\"\n}"
+      },
+      "id": "431243ea-8039-4230-814b-a4451d46e159",
+      "name": "Structured Output Parser1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        900,
+        2720
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "url": "https://fresh-linkedin-profile-data.p.rapidapi.com/get-profile-posts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "linkedin_url",
+              "value": "={{ $('Get lead').item.json.Linkedin }}"
+            },
+            {
+              "name": "type",
+              "value": "posts"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "fresh-linkedin-profile-data.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "6b51d0bd70msh6a12c7de7c92733p13451ejsn20c31ae8b8ab"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d9d1cbfd-7cfd-4172-b261-91314cb01f5b",
+      "name": "Get linkedin Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        360,
+        2420
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Dn0R1o9D4J5fSGJq",
+          "name": "Tavily"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        720,
+        2720
+      ],
+      "id": "9de5e185-9d0f-43ae-9457-e801311d9564",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Xp5T9q3YYxBIw2nd",
+          "name": "Google Gemini(PaLM) Api account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6a8063b6-1fd8-429a-9f13-b7512066c702",
+              "name": "your_company_name",
+              "type": "string",
+              "value": "Fun Automations"
+            },
+            {
+              "id": "3e6780d6-86d0-4353-aa17-8470a91f63a8",
+              "name": "your_company_activity",
+              "type": "string",
+              "value": "Whether it’s automating recurring tasks, analysing data faster, or personalising customer interactions, we build bespoke AI agents to help your workforce work smarter."
+            },
+            {
+              "id": "1b42f1b3-20ed-4278-952d-f28fe0f03fa3",
+              "name": "your_email",
+              "type": "string",
+              "value": "info@effibotics.com"
+            },
+            {
+              "id": "7c109ba2-d855-49d5-8700-624b01a05bc1",
+              "name": "your_name",
+              "type": "string",
+              "value": "Zacharia "
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8f53217c-221d-4d65-a8f1-6db2622795d7",
+      "name": "Set your company's variables",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        160,
+        2420
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "kimothozacharia5@gmail.com",
+        "subject": "={{ $json.output.subject }}",
+        "message": "={{ $json.output.cover_letter }}",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Approve",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Approve"
+                  },
+                  {
+                    "option": "Rewrite"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Change to make?",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 45,
+              "resumeUnit": "minutes"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1080,
+        2420
+      ],
+      "id": "71570ad2-8c55-4964-8382-db988e807fe1",
+      "name": "send email",
+      "webhookId": "0ffa969a-3d09-41c4-a696-d14538bdbb11",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8PS0qVYNzZvoWNA7",
+          "name": "phoenix✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5cb70b33-2d8f-4d2b-9b54-b789b824d748",
+              "leftValue": "={{ $json.data.Approve }}",
+              "rightValue": "Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1240,
+        2420
+      ],
+      "id": "c527a9a3-a464-4f09-831e-e1e05f0a6cc2",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Airtable Trigger').item.json.fields.Email }}",
+        "subject": "={{ $('Generate Subject and cover letter based on match').item.json.output.subject }}",
+        "message": "={{ $('Generate Subject and cover letter based on match').item.json.output.cover_letter }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Zacharia Kimotho - Fun Automations"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1460,
+        2400
+      ],
+      "id": "fad4d067-2766-4947-a2b4-4e0d537ff8a7",
+      "name": "Send campaign",
+      "webhookId": "855bfb12-53dd-4bfe-b9e3-6bf3ad6d3ff7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "B0bkiaTgyFgw5TGL",
+          "name": "Gmail account✅"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Subject : {{ $('Generate Subject and cover letter based on match').item.json.output.subject }}\n\nBody: {{ $('Generate Subject and cover letter based on match').item.json.output.cover_letter }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Make the following changed to the email {{ $json.data['Change to make?'] }}"
+            }
+          ]
+        }
+      },
+      "id": "da44ce23-e6fa-40e9-b36e-52851153b2ea",
+      "name": "Rewrite",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        1200,
+        2660
+      ],
+      "typeVersion": 1.5
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"subject\": \"\",\n  \"cover_letter\": \"\"\n}"
+      },
+      "id": "3cab4e05-f649-457c-872b-155f0ae59abc",
+      "name": "Structured Output Parser2",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        1400,
+        3000
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        3020
+      ],
+      "id": "36bea00a-7d9e-4917-8874-8f81e48ec64a",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Xp5T9q3YYxBIw2nd",
+          "name": "Google Gemini(PaLM) Api account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Personalize a custom sales pitch",
+        "height": 820,
+        "width": 1660
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        100,
+        2340
+      ],
+      "typeVersion": 1,
+      "id": "94d33484-10c7-44d8-8f8c-37db33399d1c",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "app2OBE1J2kRRZNMM",
+          "mode": "list",
+          "cachedResultName": "Effibotics CRM",
+          "cachedResultUrl": "https://airtable.com/app2OBE1J2kRRZNMM"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblwFT4GlFEULBxWr",
+          "mode": "list",
+          "cachedResultName": "Lead Enrichment",
+          "cachedResultUrl": "https://airtable.com/app2OBE1J2kRRZNMM/tblwFT4GlFEULBxWr"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "linkedin_url": "={{ $json.linkedin_url }}",
+            "full_name": "={{ $json.full_name }}",
+            "about": "={{ $json.about }}",
+            "city": "={{ $json.city }}",
+            "company": "={{ $json.company }}",
+            "company_description": "={{ $json.company_description }}",
+            "company_domain": "={{ $json.company_domain }}",
+            "company_employee_range": "={{ $json.company_employee_range }}",
+            "company_industry": "={{ $json.company_industry }}",
+            "company_linkedin_url": "={{ $json.company_linkedin_url }}",
+            "company_website": "={{ $json.company_website }}",
+            "connection_count": "={{ $json.connection_count }}",
+            "country": "={{ $json.country }}",
+            "current_company_join_year": "={{ $json.current_company_join_year }}",
+            "experiences": "={{ $json.experiences }}",
+            "first_name": "={{ $json.first_name }}",
+            "follower_count": "={{ $json.follower_count }}",
+            "headline": "={{ $json.headline }}",
+            "job_title": "={{ $json.job_title }}",
+            "public_id": "={{ $json.public_id }}"
+          },
+          "matchingColumns": [
+            "linkedin_url"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "about",
+              "displayName": "about",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company_description",
+              "displayName": "company_description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company_domain",
+              "displayName": "company_domain",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company_employee_range",
+              "displayName": "company_employee_range",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company_industry",
+              "displayName": "company_industry",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company_linkedin_url",
+              "displayName": "company_linkedin_url",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "company_website",
+              "displayName": "company_website",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "connection_count",
+              "displayName": "connection_count",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "current_company_join_year",
+              "displayName": "current_company_join_year",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "experiences",
+              "displayName": "experiences",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "follower_count",
+              "displayName": "follower_count",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "headline",
+              "displayName": "headline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "job_title",
+              "displayName": "job_title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "linkedin_url",
+              "displayName": "linkedin_url",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "public_id",
+              "displayName": "public_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        120
+      ],
+      "id": "db09a086-9785-42a1-a1ee-4bd82b44cc3f",
+      "name": "Lead Enrichment",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CAa937hASXcJZWTv",
+          "name": "Airtable Personal Access Token account✅"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "app2OBE1J2kRRZNMM",
+          "mode": "list",
+          "cachedResultName": "Effibotics CRM",
+          "cachedResultUrl": "https://airtable.com/app2OBE1J2kRRZNMM"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl9lsmv5ocybpUkY",
+          "mode": "list",
+          "cachedResultName": "Appointments & Calls",
+          "cachedResultUrl": "https://airtable.com/app2OBE1J2kRRZNMM/tbl9lsmv5ocybpUkY"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Get lead').first().json.id }}",
+            "Lead data": "={{ $json.id.split() }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Meeting",
+              "displayName": "Meeting",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Booked",
+                  "value": "Booked"
+                },
+                {
+                  "name": "In progress",
+                  "value": "In progress"
+                },
+                {
+                  "name": "Done",
+                  "value": "Done"
+                },
+                {
+                  "name": "No Show",
+                  "value": "No Show"
+                },
+                {
+                  "name": "Canceled",
+                  "value": "Canceled"
+                },
+                {
+                  "name": "Rescheduled",
+                  "value": "Rescheduled"
+                },
+                {
+                  "name": "Showed Up",
+                  "value": "Showed Up"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Start-time",
+              "displayName": "Start-time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "End-time",
+              "displayName": "End-time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Accepted",
+              "displayName": "Accepted",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Meeting Link",
+              "displayName": "Meeting Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Open Meeting",
+              "displayName": "Open Meeting",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "updated",
+              "displayName": "updated",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Outcome",
+              "displayName": "Outcome",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Positive",
+                  "value": "Positive"
+                },
+                {
+                  "name": "Negative",
+                  "value": "Negative"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Keywords",
+              "displayName": "Keywords",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "shorthand_bullet",
+              "displayName": "shorthand_bullet",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "action_items",
+              "displayName": "action_items",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "bullet_gist",
+              "displayName": "bullet_gist",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "gist",
+              "displayName": "gist",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Meeting_prep",
+              "displayName": "Meeting_prep",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Calendar Link",
+              "displayName": "Calendar Link",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Created",
+              "displayName": "Created",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Reason For Schedule",
+              "displayName": "Reason For Schedule",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "business-website",
+              "displayName": "business-website",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Linkedin",
+              "displayName": "Linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Lead data",
+              "displayName": "Lead data",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "about (from Lead data)",
+              "displayName": "about (from Lead data)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Created time",
+              "displayName": "Created time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "39fcf47e-d91d-474c-aa37-f562c858fcea",
+      "name": "Appointments & Calls",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "CAa937hASXcJZWTv",
+          "name": "Airtable Personal Access Token account✅"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dev.funautomations.io",
+            "user-agent": "axios/1.7.4",
+            "content-length": "3341",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "10.0.1.1",
+            "x-forwarded-host": "dev.funautomations.io",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "body": {
+              "triggerEvent": "BOOKING_CREATED",
+              "createdAt": "2025-01-08T07:04:45.141Z",
+              "payload": {
+                "bookerUrl": "https://cal.com",
+                "type": "30-min-meeting-schedules",
+                "title": "30 Min Meeting Schedules between Zacharia Kimotho and Nick Grosoli ",
+                "description": "",
+                "additionalNotes": "",
+                "customInputs": {},
+                "startTime": "2025-01-08T12:30:00Z",
+                "endTime": "2025-01-08T13:00:00Z",
+                "organizer": {
+                  "id": 994846,
+                  "name": "Zacharia Kimotho",
+                  "email": "kimothozacharia5@gmail.com",
+                  "username": "effibotics",
+                  "timeZone": "Africa/Nairobi",
+                  "language": {
+                    "locale": "en"
+                  },
+                  "timeFormat": "h:mma",
+                  "utcOffset": 180
+                },
+                "responses": {
+                  "name": {
+                    "label": "your_name",
+                    "value": "Nick Grosoli ",
+                    "isHidden": false
+                  },
+                  "email": {
+                    "label": "email_address",
+                    "value": "nick.grosoli@sectoralarm.it",
+                    "isHidden": false
+                  },
+                  "location": {
+                    "label": "location",
+                    "value": {
+                      "value": "integrations:google:meet",
+                      "optionValue": ""
+                    },
+                    "isHidden": false
+                  },
+                  "guests": {
+                    "label": "additional_guests",
+                    "value": [],
+                    "isHidden": false
+                  },
+                  "purpose": {
+                    "label": "Reason for scheduling the call",
+                    "isHidden": true
+                  },
+                  "title": {
+                    "label": "what_is_this_meeting_about",
+                    "isHidden": true
+                  },
+                  "business": {
+                    "label": "Business name",
+                    "isHidden": true
+                  },
+                  "business-website": {
+                    "label": "Enter your website",
+                    "value": "Https://www.sectoralarm.it",
+                    "isHidden": false
+                  },
+                  "rescheduleReason": {
+                    "label": "reason_for_reschedule",
+                    "isHidden": false
+                  },
+                  "Linkedin": {
+                    "label": "Enter your Linkedin Url",
+                    "isHidden": true
+                  },
+                  "agenda": {
+                    "label": "  What is this meeting about?",
+                    "value": "Agentic workflows for SEO",
+                    "isHidden": false
+                  },
+                  "Budget": {
+                    "label": "What is your budget (In usd)",
+                    "isHidden": true
+                  },
+                  "notes": {
+                    "label": "additional_notes",
+                    "isHidden": false
+                  }
+                },
+                "userFieldsResponses": {
+                  "purpose": {
+                    "label": "Reason for scheduling the call",
+                    "isHidden": true
+                  },
+                  "business": {
+                    "label": "Business name",
+                    "isHidden": true
+                  },
+                  "business-website": {
+                    "label": "Enter your website",
+                    "value": "Https://www.sectoralarm.it",
+                    "isHidden": false
+                  },
+                  "Linkedin": {
+                    "label": "Enter your Linkedin Url",
+                    "isHidden": true
+                  },
+                  "agenda": {
+                    "label": "  What is this meeting about?",
+                    "value": "Agentic workflows for SEO",
+                    "isHidden": false
+                  },
+                  "Budget": {
+                    "label": "What is your budget (In usd)",
+                    "isHidden": true
+                  }
+                },
+                "attendees": [
+                  {
+                    "email": "nick.grosoli@sectoralarm.it",
+                    "name": "Nick Grosoli ",
+                    "firstName": "",
+                    "lastName": "",
+                    "timeZone": "Europe/Rome",
+                    "language": {
+                      "locale": "it"
+                    },
+                    "utcOffset": 60
+                  }
+                ],
+                "location": "integrations:google:meet",
+                "destinationCalendar": [
+                  {
+                    "id": 358680,
+                    "integration": "google_calendar",
+                    "externalId": "kimothozacharia5@gmail.com",
+                    "primaryEmail": "kimothozacharia5@gmail.com",
+                    "userId": 994846,
+                    "eventTypeId": null,
+                    "credentialId": 576040,
+                    "domainWideDelegationCredentialId": null
+                  }
+                ],
+                "hideCalendarNotes": false,
+                "hideCalendarEventDetails": false,
+                "requiresConfirmation": false,
+                "eventTypeId": 1483378,
+                "seatsShowAttendees": true,
+                "seatsPerTimeSlot": null,
+                "seatsShowAvailabilityCount": true,
+                "schedulingType": null,
+                "iCalUID": "szdVSPryduW4LiXZj3qcMt@Cal.com",
+                "iCalSequence": 0,
+                "oneTimePassword": null,
+                "uid": "szdVSPryduW4LiXZj3qcMt",
+                "conferenceData": {
+                  "createRequest": {
+                    "requestId": "8a0ce172-f69a-51b5-8481-93feb73d58e2"
+                  }
+                },
+                "appsStatus": [
+                  {
+                    "appName": "google-calendar",
+                    "type": "google_calendar",
+                    "success": 1,
+                    "failures": 0,
+                    "errors": [],
+                    "warnings": []
+                  },
+                  {
+                    "appName": "Google Meet",
+                    "type": "conferencing",
+                    "success": 1,
+                    "failures": 0,
+                    "errors": []
+                  }
+                ],
+                "eventTitle": "30 Min Meeting Schedules",
+                "eventDescription": "",
+                "price": 0,
+                "currency": "usd",
+                "length": 30,
+                "bookingId": 5150661,
+                "metadata": {
+                  "videoCallUrl": "https://meet.google.com/xgo-muay-rkt"
+                },
+                "status": "ACCEPTED"
+              }
+            }
+          },
+          "webhookUrl": "https://dev.funautomations.io/webhook-test/3e4b6321-5d89-4206-b14b-0be28dbe31ea",
+          "executionMode": "test"
+        }
+      }
+    ],
+    "account 2": [
+      {
+        "json": {
+          "data": {
+            "about": "I am a change agent with a depth of experience and understanding for digital and content marketing. I approach each day with a positive attitude and the desire to create something great. I'm a collaborator, experienced navigating highly matrixed organizations, and have the proven ability to develop digital marketing strategies that drive revenue.",
+            "city": "Santa Monica",
+            "company": "BJT Insurance Solutions",
+            "company_description": "BJT Insurance Solutions, a Division of BJT Solutions, Inc. is an independent insurance agency specializing in: Life, Long-term care, & disability insurance, and Retirement income planning\n\nBJT Insurance Solutions, a division of BJT Solutions, Inc.\nNPN: 21055860, CA License # 6012469",
+            "company_domain": "bjtinsurance.com",
+            "company_employee_range": "0-1",
+            "company_industry": "Insurance",
+            "company_linkedin_url": "https://www.linkedin.com/company/bjt-insurance-solutions",
+            "company_logo_url": "https://media.licdn.com/dms/image/v2/D4D0BAQFJcqwt4x0ghA/company-logo_400_400/company-logo_400_400/0/1712951974565/bjt_insurance_solutions_logo?e=1747872000&v=beta&t=KjBUPthVB4T-EYFwCjPwYQMSuJz5_MRoVcBe2q96kjA",
+            "company_website": "https://bjtinsurance.com/",
+            "company_year_founded": "",
+            "connection_count": 3064,
+            "country": "United States",
+            "current_company_join_month": null,
+            "current_company_join_year": 2022,
+            "current_job_duration": "3 yrs 2 mos",
+            "educations": [
+              {
+                "activities": "",
+                "date_range": "",
+                "degree": "Bachelor of Arts (B.A.)",
+                "end_month": "",
+                "end_year": "",
+                "field_of_study": "Communication",
+                "school": "Rutgers University",
+                "school_id": "4262",
+                "school_linkedin_url": "https://www.linkedin.com/company/4262/",
+                "school_logo_url": "https://media.licdn.com/dms/image/v2/D4E0BAQFnLVzNL8ZOYg/company-logo_200_200/company-logo_200_200/0/1692195098121/rutgersu_logo?e=1747872000&v=beta&t=MFlwpr53Aiql1Q_TqaOe7C9F6oJnM8a3k6U9ps1nwBA",
+                "start_month": "",
+                "start_year": ""
+              },
+              {
+                "activities": "",
+                "date_range": "2013 - 2014",
+                "degree": "Advanced Social Media Strategy (ASMS) Certificate",
+                "end_month": "",
+                "end_year": 2014,
+                "field_of_study": "Social Media Strategy",
+                "school": "S.I. Newhouse School of Public Communications at Syracuse University",
+                "school_id": "15098367",
+                "school_linkedin_url": "https://www.linkedin.com/company/15098367/",
+                "school_logo_url": "https://media.licdn.com/dms/image/v2/C560BAQGcF7IrKM5EkQ/company-logo_200_200/company-logo_200_200/0/1630636869480/si_newhouse_school_of_public_communications_at_syracuse_university_logo?e=1747872000&v=beta&t=oycupkPyMTQWRT09FY9ri4DKRxATfkGM9w5F_mz0me0",
+                "start_month": "",
+                "start_year": 2013
+              },
+              {
+                "activities": "",
+                "date_range": "2011 - 2011",
+                "degree": "Italian Studies",
+                "end_month": "",
+                "end_year": 2011,
+                "field_of_study": "",
+                "school": "John Cabot University (Rome, Italy)",
+                "school_id": "",
+                "school_linkedin_url": "",
+                "school_logo_url": "",
+                "start_month": "",
+                "start_year": 2011
+              },
+              {
+                "activities": "",
+                "date_range": "",
+                "degree": "",
+                "end_month": "",
+                "end_year": "",
+                "field_of_study": "",
+                "school": "Landmark",
+                "school_id": "11123",
+                "school_linkedin_url": "https://www.linkedin.com/company/11123/",
+                "school_logo_url": "https://media.licdn.com/dms/image/v2/C4D0BAQG5xLfKd2Fl-g/company-logo_200_200/company-logo_200_200/0/1644253216280/landmark_logo?e=1747872000&v=beta&t=ZmO5zJ930ieYojD3vqmdalm1nvNQsDS6ZSGVcKPtilE",
+                "start_month": "",
+                "start_year": ""
+              }
+            ],
+            "email": "",
+            "experiences": [
+              {
+                "company": "BJT Insurance Solutions",
+                "company_id": "102418233",
+                "company_linkedin_url": "https://www.linkedin.com/company/102418233",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/D4D0BAQFJcqwt4x0ghA/company-logo_200_200/company-logo_200_200/0/1712951974565/bjt_insurance_solutions_logo?e=1747872000&v=beta&t=oexH3_RgYrvrqD0Ot_8jsryMcWURifrjeSjzIpWWQN4",
+                "date_range": "2022 - Present",
+                "description": "Founder of BJT Insurance Solutions, a division of BJT Solutions, Inc.: As independent insurance brokers and financial professionals we have access to a wide range of solutions from 30+ A rated insurance companies.\n\nLearn more: https://bjtinsurance.com/\n\nBrad Tonoff - President & Financial Professional\nBJT Insurance Solutions, a division of BJT Solutions, Inc.\nNPN for Brad Tonoff: 19952235\nCA License Number for Brad Tonoff: 4245124\nNPN for BJT Solutions, Inc.: 21055860\nCA License Number for BJT Insurance Solutions: 6012469\n\nBJT Solutions, Inc. and Brad Tonoff are licensed in multiple states, more information can be found at https://bjtinsurance.com/licenses/",
+                "duration": "3 yrs 2 mos",
+                "end_month": "",
+                "end_year": "",
+                "is_current": true,
+                "job_type": "",
+                "location": "Santa Monica, California, United States",
+                "skills": "Life Insurance · Long Term Care Insurance · Disability Insurance · Annuities · Retirement Planning",
+                "start_month": "",
+                "start_year": 2022,
+                "title": "Founder and CEO"
+              },
+              {
+                "company": "BJT Solutions, Inc.",
+                "company_id": "",
+                "company_linkedin_url": "",
+                "company_logo_url": "",
+                "date_range": "2020 - Present",
+                "description": "Revenue generation marketing and sales consultant (Early-stage Startups)",
+                "duration": "5 yrs 2 mos",
+                "end_month": "",
+                "end_year": "",
+                "is_current": true,
+                "job_type": "",
+                "location": "Los Angeles, California, United States · Remote",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2020,
+                "title": "President, Marketing and Sales Consultant"
+              },
+              {
+                "company": "CrossBorder Solutions",
+                "company_id": "",
+                "company_linkedin_url": "",
+                "company_logo_url": "",
+                "date_range": "2020 - 2020",
+                "description": "",
+                "duration": "Less than a year",
+                "end_month": "",
+                "end_year": 2020,
+                "is_current": false,
+                "job_type": "Full-time",
+                "location": "New York, New York, United States",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2020,
+                "title": "Marketing Director"
+              },
+              {
+                "company": "Doctor.com",
+                "company_id": "2445393",
+                "company_linkedin_url": "https://www.linkedin.com/company/2445393",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/C4E0BAQEhyCuxA1vJhw/company-logo_200_200/company-logo_200_200/0/1631368822498?e=1747872000&v=beta&t=pQwVJvGVSjDXCpfwgLBgAmAhPWlt9YOkHRxSCDJk7-o",
+                "date_range": "2017 - 2020",
+                "description": "- Lead multi-touch marketing campaigns designed to drive revenue \n- Manage inbound lead demand generation\n- Head of social media\n- Work cross-functionally with Sales, CS, Engineering, and Product to develop marketing campaigns \n- Hubspot, Salesforce, marketing automation\n- Paid media, Facebook, Google, LinkedIn",
+                "duration": "3 yrs",
+                "end_month": "",
+                "end_year": 2020,
+                "is_current": false,
+                "job_type": "Full-time",
+                "location": "New york, new york",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2017,
+                "title": "Senior Marketing Manager"
+              },
+              {
+                "company": "New York Life Insurance Company",
+                "company_id": "3432",
+                "company_linkedin_url": "https://www.linkedin.com/company/3432",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/C560BAQFphKpPVUR_sg/company-logo_200_200/company-logo_200_200/0/1631343297841?e=1747872000&v=beta&t=abzZnRKzmNDYEoaC3WaK1qfYIatbdiLfDnK_QERbI0g",
+                "date_range": "2015 - 2017",
+                "description": "Design and implement social media strategies, Example: Developed inbound B2B digital acquisition programs leveraging social media advertising\n\nDigital marketing campaigns for Retail Annuity business:\n(Content marketing, email, social media, automation)\n\nCraft digital content used across multiple touchpoints:\n(videos, blog posts, infographics, podcast) \n\nContent strategy for Annuity department\n\nWork cross-functionally with Sales, Distribution, Corporate Communications/Digital, I/T, Compliance, Product on various projects including social media advertising, SEM.\n\nTools: LinkedIn, Twitter, Facebook, Instagram, Eloqua, Hearsay Social, Omniture Sitecatalyst, Salesforce",
+                "duration": "2 yrs",
+                "end_month": "",
+                "end_year": 2017,
+                "is_current": false,
+                "job_type": "Full-time",
+                "location": "Greater New York City Area",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2015,
+                "title": "B2B Senior Manager, Digital Demand Generation and Product Marketing"
+              },
+              {
+                "company": "AXIS Capital",
+                "company_id": "33354",
+                "company_linkedin_url": "https://www.linkedin.com/company/33354",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/D560BAQF7JQ0yxiT7dA/company-logo_200_200/company-logo_200_200/0/1719804398658/axis_capital_logo?e=1747872000&v=beta&t=ItCl0jcQagmYuQlDfOo284WhjoknubJ_k0xqj8XOI7k",
+                "date_range": "2015 - 2015",
+                "description": "Worked in the AXIS Accident & Health line of business: www.axiscapital.com/en-us/accident-health\n\nCRM & Email Marketing Management - Exact Target & Salesforce (B2B)\n\nSocial Media Strategy, Digital Marketing\n\nGraphic Design, Brochure creation\n\nCollaborating with small teams - Compliance, Legal, Underwriting, Product\n\nMaintain SharePoint\n\n(Speciality: Financial Services Compliant Marketing & Advertising)",
+                "duration": "Less than a year",
+                "end_month": "",
+                "end_year": 2015,
+                "is_current": false,
+                "job_type": "",
+                "location": "Greater New York City Area",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2015,
+                "title": "Marketing Specialist"
+              },
+              {
+                "company": "Benchworks",
+                "company_id": "98780",
+                "company_linkedin_url": "https://www.linkedin.com/company/98780",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/C560BAQEZDMF51qr3Pw/company-logo_200_200/company-logo_200_200/0/1630573564478/benchworks_logo?e=1747872000&v=beta&t=2GGCgjAGKI7NZYHobAsm1F4q4X0Ql4oIORNKF7l1Kzc",
+                "date_range": "2014 - 2015",
+                "description": "Served as company-wide Social Media Consultant, mentoring staff including Jr. Social Media Community Manager \n\nPaid E-commerce Advertising - PPC, Facebook & Twitter Ad Campaigns (B2C) (Tools: Power Editor, Analytics)\n\nSocial Media Community Management - Facebook, Twitter, Pinterest (Tools: HootSuite, Buffer)\n\nInfluencer Marketing Outreach\n\nLead Generation, Inbound Marketing",
+                "duration": "1 yr",
+                "end_month": "",
+                "end_year": 2015,
+                "is_current": false,
+                "job_type": "",
+                "location": "Telecommute",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2014,
+                "title": "Social Media Specialist (Consultant)"
+              },
+              {
+                "company": "Verisk",
+                "company_id": "580619",
+                "company_linkedin_url": "https://www.linkedin.com/company/580619",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/C4E0BAQHsjp1GOw4Rmw/company-logo_200_200/company-logo_200_200/0/1641304478140/verisk_analytics_logo?e=1747872000&v=beta&t=7i3MTNgQ48uTUwEOIk29ebsd7rK9KT4aA8vQjj0QUSY",
+                "date_range": "2012 - 2013",
+                "description": "Verisk Analytics is a leading source of information about risk offering risk assessment services and decision analytics for professionals in many fields, including: \n\nproperty/casualty insurance \nmortgage \nhealthcare \ngovernment \nhuman resources",
+                "duration": "1 yr",
+                "end_month": "",
+                "end_year": 2013,
+                "is_current": false,
+                "job_type": "Full-time",
+                "location": "Jersey City, New Jersey",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2012,
+                "title": "Event & Travel Coordinator"
+              },
+              {
+                "company": "Johnson & Johnson",
+                "company_id": "1207",
+                "company_linkedin_url": "https://www.linkedin.com/company/1207",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/D4E0BAQFuqNYNGYIxzg/company-logo_200_200/company-logo_200_200/0/1694701608948/johnson__johnson_logo?e=1747872000&v=beta&t=DsrVLRuzf7jbGygEgulZePH_nQAmWsLdRLQa5yNvpq4",
+                "date_range": "2011 - 2011",
+                "description": "",
+                "duration": "Less than a year",
+                "end_month": "",
+                "end_year": 2011,
+                "is_current": false,
+                "job_type": "",
+                "location": "",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2011,
+                "title": "Creative Intern"
+              },
+              {
+                "company": "TerraCycle",
+                "company_id": "61003",
+                "company_linkedin_url": "https://www.linkedin.com/company/61003",
+                "company_logo_url": "https://media.licdn.com/dms/image/v2/C4E0BAQHQpMfcizJ96w/company-logo_200_200/company-logo_200_200/0/1675630397608/terracycle_logo?e=1747872000&v=beta&t=HxpVn_qVex66FmdqD8FqIlMTonn_ct-TyDERVR1K7BM",
+                "date_range": "2010 - 2010",
+                "description": "",
+                "duration": "Less than a year",
+                "end_month": "",
+                "end_year": 2010,
+                "is_current": false,
+                "job_type": "",
+                "location": "",
+                "skills": "",
+                "start_month": "",
+                "start_year": 2010,
+                "title": "Business Development Intern"
+              }
+            ],
+            "first_name": "Brad",
+            "follower_count": 3311,
+            "full_name": "Brad Tonoff",
+            "headline": "Founder and CEO at BJT Insurance Solutions",
+            "hq_city": "Los Angeles",
+            "hq_country": "US",
+            "hq_region": "California",
+            "job_title": "Founder and CEO",
+            "languages": [],
+            "last_name": "Tonoff",
+            "linkedin_url": "https://www.linkedin.com/in/bradtonoff/",
+            "location": "Santa Monica, California, United States",
+            "phone": "",
+            "profile_id": "76942935",
+            "profile_image_url": "https://media.licdn.com/dms/image/v2/D5603AQHPbpsUDUvjQQ/profile-displayphoto-shrink_800_800/B56ZPxjnv2G8Ag-/0/1734924468277?e=1745452800&v=beta&t=85jA6M4LcK1DACRmyf-tDpzzVutRteJvppoE8OZhW7U",
+            "public_id": "bradtonoff",
+            "school": "Rutgers University",
+            "state": "California",
+            "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+          },
+          "message": "ok"
+        }
+      }
+    ],
+    "Get linkedin Posts": [
+      {
+        "json": {
+          "data": [
+            {
+              "images": [],
+              "num_comments": 1,
+              "num_likes": 7,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7232799527076802560/",
+              "posted": "2024-08-23 17:23:06",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Annuity rates have reached a 17-year high due to elevated Treasury yields, presenting a unique opportunity for those seeking retirement income. \n\nWith the Federal Reserve potentially cutting rates soon, locking in these high annuity rates now can maximize income, reduce market volatility, and provide financial security. \n\nFixed indexed annuities, in particular, are gaining popularity. \n\nHowever, it's crucial to assess individual suitability before making decisions.\n\nLink in comments.",
+              "time": "6 months ago",
+              "urn": "7232799527076802560"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQFaUD3nCK4EaQ/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1719360927097?e=1743033600&v=beta&t=tZOwznV2Z1i9-50SbIkqXgXvLrYx47pfjXZ12w0QUIg"
+                }
+              ],
+              "num_comments": 1,
+              "num_likes": 11,
+              "num_praises": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7211522420019449857/",
+              "posted": "2024-06-26 00:15:28",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Just like finding the perfect spot on the beach to catch the best waves, optimizing your #SocialSecurity benefits involves picking the right time and place in your financial landscape. \n\nWhether you’re planning a solo #retirement journey or coordinating with a partner, understanding how to maximize your Social Security can make a significant difference in your retirement income. \n\nHere’s how to make sure your benefits are as perfectly timed as a SoCal sunset. (link in comments)",
+              "time": "8 months ago",
+              "urn": "7211522420019449857"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQHpQ9E8W3qifw/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1718904509693?e=1743033600&v=beta&t=aW2JifzvZm5UCE5M09ooqQK841GLH0AL6ji2wmS8vHM"
+                }
+              ],
+              "num_comments": 1,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7209608066126790656/",
+              "posted": "2024-06-20 17:28:31",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🔍 Ever wondered what would happen to your business if a key team member suddenly couldn’t contribute due to injury, illness, or even death? Learn how Key Person Insurance acts as a safety net, ensuring your business continues to thrive even in unexpected circumstances. 📈 Discover more in our latest blog post! 👇(link in comments)\n\n#BusinessContinuity #Insurance #KeyPersonInsurance #BJTInsurance #BusinessProtection",
+              "time": "8 months ago",
+              "urn": "7209608066126790656"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQHBnp6_PCCekQ/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1718142584873?e=1743033600&v=beta&t=tjxzeEhqbkIr2DH6cRg-ujXdgJSJVPzvPkkaTpoKfiU"
+                }
+              ],
+              "num_comments": 1,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7206412319034122241/",
+              "posted": "2024-06-11 21:49:45",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Navigating the maze of term life insurance can feel like an epic quest, but it doesn't have to be. 💼🔍\n\nRecently, I helped a client who was facing high rates from two different insurance companies. First, they were quoted a high rate because of their father's early heart attack. Then, another company quoted them a high rate because they hadn't had a physical in five years.\n\nBut we didn't stop there. We found a third company that offered them the best rate, saving them over $3,000 a year! 🎉\n\nThis experience highlights the value of working with an independent broker like me. I navigate the complexities and find the best deals so you don’t have to.\n\nCheck out my blog post to learn more about the life insurance approval process (link in comments): The Life Insurance Approval Odyssey: A Journey Not for the Faint of Heart.\n\nIf you need help finding the best life insurance rates, let's connect! 🤝\n\n#LifeInsurance #IndependentBroker #ClientSuccess #InsuranceJourney",
+              "time": "9 months ago",
+              "urn": "7206412319034122241"
+            },
+            {
+              "article_subtitle": "bjtinsurance.com",
+              "article_title": "How Annuities Can Complement Your Retirement Plan: Your Ticket to the SoCal Dream - BJT INSURANCE SOLUTIONS",
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7204145864846581763/",
+              "posted": "2024-06-05 15:43:40",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Imagine a retirement as relaxing as a sun-drenched day on a Southern California beach—no matter where you are. While we all dream of a stress-free retirement, achieving it requires smart planning and the right financial tools.",
+              "time": "9 months ago",
+              "urn": "7204145864846581763"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7188692913990569984/",
+              "posted": "2024-04-24 00:19:10",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "ChatGPT has made coding skills a commodity. Computer engineers are no longer top of the food chain. Technical founders are a thing of the past. Those who thrive at revenue, scale, public speaking, and general business skills will be the unicorn founders moving forward.",
+              "time": "10 months ago",
+              "urn": "7188692913990569984"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7188351891414626306/",
+              "posted": "2024-04-23 01:44:04",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "ChatGPT has made Excel/Google sheets skills completely obsolete. I used to suck at formulas and whatnot. Now I tell AI what I want and it tells me exactly what to do.",
+              "time": "10 months ago",
+              "urn": "7188351891414626306"
+            },
+            {
+              "images": [],
+              "num_comments": 11,
+              "num_empathy": 1,
+              "num_likes": 8,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7186172099219107840/",
+              "posted": "2024-04-17 01:22:21",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "What’s the most efficient way to enrich thousands of LinkedIn profile URLs with valid emails? Jesse Ouellette Jordan Crawford 🦾Eric Nowoslawski",
+              "time": "11 months ago",
+              "urn": "7186172099219107840"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQGNC6FiSqRdfw/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1712693915189?e=1743033600&v=beta&t=dBwwmBsG2DBRTKFs6GDuXVVZkVHhjMKGaspd764I54U"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 0,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7183558941547589632/",
+              "posted": "2024-04-09 20:18:35",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Great news for one of our newest clients. Feel free to reach out if you have questions.",
+              "time": "11 months ago",
+              "urn": "7183558941547589632"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 0,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7181390533817241600/",
+              "posted": "2024-04-03 20:42:07",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "What's the best screen capture video recording software? Is it Loom, or is there an equivalent for less?",
+              "time": "11 months ago",
+              "urn": "7181390533817241600"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQHsw4X_biuM8w/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1707339103860?e=1743033600&v=beta&t=ARNqWlhIWU4w1UUU9b5W_15NVeBAc7-LBlXPbwj7mMY"
+                }
+              ],
+              "num_comments": 1,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7161099237567393792/",
+              "posted": "2024-02-07 20:51:45",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "BJT Insurance Solutions specializes in:\n\nLife insurance \n\nLong term care insurance \n\nDisability insurance \n\nRetirement income planning\n\nAs independent brokers we help you compare options and prices across 30+ companies.\n\nDM me for quotes and more information",
+              "time": "1 year ago",
+              "urn": "7161099237567393792"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQEsRSa8pw_DWQ/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1707282987409?e=1743033600&v=beta&t=VSXCMDGb21gYiFjE2A4WGzOO-lR6HXqLGqlHmzqghSA"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7160863865499521025/",
+              "posted": "2024-02-07 05:16:27",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Looking for life or disability insurance? Look no further. Meet BJT Insurance Solutions. As independent brokers we help you compare options and prices across 30+ companies. DM me for quotes",
+              "time": "1 year ago",
+              "urn": "7160863865499521025"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7120222051096825856/",
+              "posted": "2023-10-18 01:40:24",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Looking for a #Slack hack. \n\nYou can filter for keywords, but can't exclude keywords for Slack notifications. \n\nAnyone have any hacks to filter out specific keywords?",
+              "time": "1 year ago",
+              "urn": "7120222051096825856"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQFFdw8UYHsptw/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1695097926770?e=1743033600&v=beta&t=q3vXL6WLcgXoPHIUm3tsuOKOixudSGeAKjKXioM9bQs"
+                }
+              ],
+              "num_comments": 0,
+              "num_interests": 1,
+              "num_likes": 11,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7109861191430115328/",
+              "posted": "2023-09-19 11:30:02",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Want to learn how to write a proper sales email?\n\nCold email is dead..or is it\n\nPeople appreciate an email that's: \n\n- well thought out\n- researched \n- and has a upbeat tone\n\nDM me if you want help with this",
+              "time": "1 year ago",
+              "urn": "7109861191430115328"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQFLLDEiztKAqA/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1695066345754?e=1743033600&v=beta&t=hblVy3Za7SeJlza-5HoQwIM0vKE-0tuOheTyUYm7VLA"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 5,
+              "num_praises": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7109623558758178816/",
+              "posted": "2023-09-18 19:45:46",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Another day of cold emails bringing me interested prospects",
+              "time": "1 year ago",
+              "urn": "7109623558758178816"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQEEwFhcXspVzg/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1695001665525?e=1743033600&v=beta&t=vl-mOBjY6vVoNGwtgNa3iLnzEQwpH8yUAWYzVuIdies"
+                }
+              ],
+              "num_appreciations": 1,
+              "num_comments": 0,
+              "num_likes": 7,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7109352268826636288/",
+              "posted": "2023-09-18 01:47:46",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "9 meetings booked with prospects for this week from sending cold emails. \n\nShould I stop sending cold emails?",
+              "time": "1 year ago",
+              "urn": "7109352268826636288"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_interests": 1,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7107849821331345408/",
+              "posted": "2023-09-13 22:17:34",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "There's a lot of cold email \"experts\" out there. \n\nChatGPT/OpenAI personalization yada yada yada.\n\nMe? \n\nI send 700 emails/day promoting my 2 businesses and book 5 - 10 quality meetings/week.\n\nIt works for me because the universe or prospects I can sell to is huge (more than 500K).\n\nCould I increase those rates with even crazier personalization?\n\nMaybe.\n\nIs it worth it?\n\nNot right now.",
+              "time": "1 year ago",
+              "urn": "7107849821331345408"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7107795820447498241/",
+              "posted": "2023-09-13 18:43:00",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Friend of mine is looking for an SDR role either in the San Diego area or remote. Let me know if you want an intro!",
+              "time": "1 year ago",
+              "urn": "7107795820447498241"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQEMSYQOoBQv8Q/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1694128187821?e=1743033600&v=beta&t=zjJHDfQSgtM4B8a1SE1_dtM4jhd69Zs_P3cqwkeZYkQ"
+                }
+              ],
+              "num_comments": 1,
+              "num_likes": 12,
+              "num_praises": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7105688639220682753/",
+              "posted": "2023-09-07 23:09:48",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "I’m happy to share that I’ve obtained a new certification: #HubSpot Solutions Partner from HubSpot Academy!\n\n#b2bsales #b2bleadgeneration #b2bmarketing #b2bsaas",
+              "time": "1 year ago",
+              "urn": "7105688639220682753"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQFno4WIR-UJ-w/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1694109850634?e=1743033600&v=beta&t=8rgoq6SdmEqzwW69uw3Ji43B7DRr2qh9JCtpzAtdi1U"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 4,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7105611728675106816/",
+              "posted": "2023-09-07 18:04:11",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Want a #LifeInsurance review, or help with cold emails? DM me\n\n#hutzpah",
+              "time": "1 year ago",
+              "urn": "7105611728675106816"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQE_RQvIZ_GgGg/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1694109653605?e=1743033600&v=beta&t=2kedWsHt9XcmM3eXCegBNM5M5twACs6Dw5ApVyuK6UY"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7105610902468534272/",
+              "posted": "2023-09-07 18:00:55",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Want replies like this to your cold emails? \n\nYou know where to find me.",
+              "time": "1 year ago",
+              "urn": "7105610902468534272"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQEPCh2sKsQJkA/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1694046292641?e=1743033600&v=beta&t=i72EYVIrFfDd9LFY754JqvngkxfNHSRCUWLG-26alaE"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 8,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7105345146426179584/",
+              "posted": "2023-09-07 00:24:53",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "You can't win them all but the feedback is appreciated!\n\n#coldemail #lifeinsurance",
+              "time": "1 year ago",
+              "urn": "7105345146426179584"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQFQ00yMx-so9w/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1693977723653?e=1743033600&v=beta&t=jbjPpremQvFMIBJCksgUgX4zSqxmPuntgWiYJ6mW54Y"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 9,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7105057545244868608/",
+              "posted": "2023-09-06 05:22:04",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Cold email is fun when you get replies like this..\n\nAgree?",
+              "time": "1 year ago",
+              "urn": "7105057545244868608"
+            },
+            {
+              "images": [],
+              "num_appreciations": 570,
+              "num_comments": 1877,
+              "num_empathy": 3936,
+              "num_interests": 1197,
+              "num_likes": 62790,
+              "num_praises": 2208,
+              "num_reposts": 10077,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7096264070479151104/",
+              "posted": "2023-08-12 22:59:56",
+              "poster": {
+                "first": "Daniel",
+                "headline": "Here to write. If it goes viral, it's not because of me. It's because it's true.",
+                "last": "Abrahams",
+                "public_id": "daniel-abrahams",
+                "urn": "ACoAAANKPgIBGxZOp9zrh7jLYlSLdiBwNqFPwPg"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/daniel-abrahams",
+              "repost_stats": {
+                "num_appreciations": 0,
+                "num_comments": 0,
+                "num_empathy": 1,
+                "num_interests": 0,
+                "num_likes": 6,
+                "num_maybe": 0,
+                "num_praises": 1,
+                "num_reposts": 0
+              },
+              "repost_urn": "7096579323960176640",
+              "reposted": "2023-08-13 19:52:38",
+              "reshared": true,
+              "resharer_comment": "How could anyone disagree with this? \n\nApple is one of the most stable, valuable companies of all time.\n\nI’ve had many managers over the years that knew how to manage but couldn’t do the work. \n\n90% of them have failed, held back their organizations, and caused great employees to leave for something better.\n\nIgnore Steve Jobs if you want..but that would be really stupid.",
+              "text": "Steve Jobs in 1985 explains why you should fill leadership roles with great individual contributors, not professional managers.\n\n“You know who the best managers are? They’re the great individual contributors who never ever want to be a manager, but decide they have to be a manager, because no one else is going to be able to do as good a job as them.”\n\nBecause the best managers know how to do the work and manage the team to get it done.",
+              "time": "1 year ago",
+              "urn": "7096264070479151104",
+              "video": {
+                "duration": 33766,
+                "stream_url": "https://dms.licdn.com/playlist/vid/v2/D5605AQFFuj17JVpzWA/mp4-720p-30fp-crf28/mp4-720p-30fp-crf28/0/1691881195499?e=1740733200&v=beta&t=8vHwrFL51OmoqgC7oJBU_ZKr9jwj_xko8ROzKUipPl8"
+              }
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7089721707770318849/",
+              "posted": "2023-07-25 21:42:55",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Has anyone worked with Bravado? Looks interesting, but they have a lengthy terms of service in order to sign up, which is always a big deterrent for me.\n\n#Sales #salesjobs #b2bsales",
+              "time": "1 year ago",
+              "urn": "7089721707770318849"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D4D22AQE9nRicvALBBQ/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1687278223840?e=1743033600&v=beta&t=fvXpTwcNOU6NfqSkMElwE1oZgRVXuT-IzKU7Ix-7_Qo"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 11,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7076957807807217664/",
+              "posted": "2023-06-20 16:23:44",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Gooooood morning from Los Angeles! Let’s make great things happen today - and remember to be kind, you never know what’s happening in someone’s life.",
+              "time": "1 year ago",
+              "urn": "7076957807807217664"
+            },
+            {
+              "images": [],
+              "num_comments": 1,
+              "num_likes": 7,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7075556436021297152/",
+              "posted": "2023-06-16 19:35:11",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Navigating the dynamic landscape of an early-stage B2B enterprise startup often feels like trying to build the plane while it's in flight. It's exciting, fraught with challenges, and calls for strategic planning. \n\nMany entrepreneurs put heavy emphasis on Search Engine Optimization (SEO), but I'd argue that for a nascent B2B enterprise startup, it's not the first tactic to consider. Why? Simply put, SEO is a long game, requiring significant time and effort to gain traction and see results.\n\nFirstly, SEO, especially for highly competitive keywords, can take 6-12 months to start showing substantial results. For startups in their early stages, this can feel like a lifetime, especially when resources and time are at a premium.\n\nInstead, what's important initially is to find product-market fit and understand if your solution resonates with your target audience. Tactics such as direct sales, account-based marketing (ABM), and utilizing existing networks can deliver quicker results.\n\nOnce you have a validated solution and a clear understanding of your market, that's when it makes sense to start investing in SEO. It will allow you to reach a wider audience and, in the long term, decrease customer acquisition costs.\n\nRemember, SEO is a crucial part of your digital marketing strategy, but timing is everything. In the early stages, it’s about speed, agility, and validation before investing in long-term tactics. #StartupStrategy #B2B #SEO",
+              "time": "1 year ago",
+              "urn": "7075556436021297152"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQGocksCyE7frg/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1686940815980?e=1743033600&v=beta&t=rwAV4n4W1HS2OKAt0xCu74howECVWkKWxAoPnDy6Wi4"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7075542614225162240/",
+              "posted": "2023-06-16 18:40:16",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Always a pleasure to get reviews like this from happy clients! cc Nexshore #hubspot",
+              "time": "1 year ago",
+              "urn": "7075542614225162240"
+            },
+            {
+              "images": [],
+              "num_comments": 3,
+              "num_likes": 11,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7073024236516245504/",
+              "posted": "2023-06-09 19:53:08",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "What's the deal with SEO? It's like a party where everyone's invited, but no one knows the address! 🎉\n\nJust read a fantastic blog post by Gaetano Nino DiNardi 🇺🇦 on SEO tips for startups. And let me tell you, it's like a GPS for that elusive SEO party. 📍\nGaetano says, 'SEO is too expensive, too competitive, and takes too long to get results.' Sounds like my last trip to the grocery store! 🛒 But guess what? He debunks all these excuses faster than I can find a parking spot in Manhattan. 🚗\n\nHe's got a 10-step guide that's as clear as my dry cleaner's instructions. From setting goals to staying updated on SEO trends, it's all there. And the best part? It's a 'no fluff zone.' I mean, who needs fluff? It's like the parsley of content - looks good, but who really needs it? 🌿\n\nSo, if you're a startup looking to unlock organic growth, check out Gaetano's guide. It's like finding the best parking spot right in front of the building. And we all know how good that feels! 🏢\n\nSo, what's your take on SEO? Is it a party you're still trying to find or are you already on the dance floor? 💃🕺\n\nBlog post url in the comments.\n\n#SEO #Startups #DigitalMarketing",
+              "time": "1 year ago",
+              "urn": "7073024236516245504"
+            },
+            {
+              "images": [],
+              "num_comments": 1,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7072759549128036352/",
+              "posted": "2023-06-09 02:21:22",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Ever notice how startups are like teenagers? They've both got this insatiable appetite for cash, and they seem to burn through it faster than a marshmallow at a camping trip. That's called the 'burn rate,' folks!\n\nNow, picture this: You're on a road trip (or maybe fleeing from the awkward family reunion). You're driving this fancy sports car, the startup equivalent, right? But, here's the catch: you only have so much gas (read: funding). The faster you drive, the quicker you burn that fuel. Run out of gas before the next station (read: revenue or additional funding), you're stranded, hitchhiking on a lonely road. Maybe a kind venture capitalist picks you up, or maybe you're stuck waiting for the next bus named 'Bankruptcy.'\n\nNow, imagine you took it a little easy on the accelerator. Sure, you're not breaking any land speed records, but hey, you get to enjoy the journey, learn the map, and actually reach your destination. You're laughing, you're learning, you're not pulling your hair out in panic. Sounds nice, right?\n\nSo here's the deal: We need to respect the burn rate, slow down the cash-consuming monster, and make sure our companies aren't acting like rebellious teenagers with our wallets. It's not about pinching pennies till Lincoln squeals, but about being a little mindful. After all, we want our businesses to be the tortoise, not the hare, right?\n\nRemember, folks, as we're roaring down the freeway of finance, let's not just aim for the checkered flag but make sure we have enough fuel to do a victory lap!\n\n#BurnRate #StartupLife #SlowAndSteady",
+              "time": "1 year ago",
+              "urn": "7072759549128036352"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 0,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7072317140162252800/",
+              "posted": "2023-06-07 21:03:23",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "In the journey of life and career, it's crucial to understand and embrace the power of 'No' 🚫. It's not just a word, but a tool for setting boundaries and prioritizing your time and energy ⏳.\n\nIn the fast-paced world of technology and innovation 💻, it's easy to get caught up in the whirlwind of opportunities and demands. But remember, every 'Yes' is a 'No' to something else. Every time you agree to a task, a meeting, or a project, you're allocating a portion of your finite time and energy to it.\n\nSo, be selective. Be strategic 🎯. Don't let the noise of others' expectations drown out your own inner voice 🗣️. Don't let others dictate your journey. Set boundaries, respect your own limits, and watch as your productivity and happiness multiply 📈.\n\nRemember, this is your journey 🛤️. You're the one holding the map 🗺️. You're the one steering the ship 🚢. Don't let anyone else take the wheel.\n\nStay strong 💪, stay focused 👀, and keep climbing 🧗‍♂️. The people who are crazy enough to think they can change the world are the ones who do.\n\nIn the words of Robert Frost, 'Two roads diverged in a wood, and I—I took the one less traveled by, And that has made all the difference.' Make your own path, make your own difference 🌈.\n\nHere's to the crazy ones, the misfits, the rebels, the troublemakers, the round pegs in the square holes... the ones who see things differently 🌍. They're not fond of rules, and they have no respect for the status quo. You can quote them, disagree with them, glorify or vilify them. About the only thing you can't do is ignore them. Because they change things. They push the human race forward 🚀.\n\nAnd while some may see them as the crazy ones, we see genius. Because the people who are crazy enough to think they can change the world, are the ones who do 🌟.\n\nRemember, stay hungry, stay foolish 🍎.",
+              "time": "1 year ago",
+              "urn": "7072317140162252800"
+            },
+            {
+              "images": [],
+              "num_comments": 2,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7072046399550361600/",
+              "posted": "2023-06-07 03:07:33",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "I recently came across a an article that sheds light on the important intersection of life insurance and estate planning. The article, titled \"Life Insurance and Estate Planning: Protecting Your Loved Ones' Future,\" by MassMutual, highlights some key points that I believe are crucial for everyone to consider.\n\nAt Tonoff Financial, we understand the significance of this topic and the role it plays in securing the financial future of your loved ones. As a firm specializing in comprehensive insurance services & financial planning, including estate planning, we can provide valuable guidance tailored to your unique needs.\n\n1️⃣ Life insurance plays a pivotal role in estate planning by providing financial security for your loved ones. It serves as a protective shield that ensures your family's financial needs are met, even in your absence.\n\n2️⃣ Estate planning involves careful consideration of how your assets will be distributed among beneficiaries and addresses issues such as taxes, debts, and charitable contributions.\n\n3️⃣ The article emphasizes the importance of regularly reviewing your life insurance coverage to ensure it aligns with your evolving needs and circumstances. Our team at Tonoff Financial can help you assess your current coverage and make any necessary adjustments to safeguard your loved ones' financial well-being.\n\n4️⃣ Another vital aspect highlighted is the use of life insurance to cover estate taxes. For individuals with substantial estates, life insurance can help cover the tax liabilities, preventing the need to sell assets or burdening beneficiaries with these expenses. Tonoff Financial has expertise in navigating the complexities of estate taxes and can provide tailored strategies to minimize tax burdens.\n\n5️⃣ Properly designating beneficiaries and regularly updating these designations is crucial. Our firm can guide you through the process of beneficiary designations, ensuring your assets are distributed according to your wishes and helping you avoid potential pitfalls.\n\n6️⃣ Lastly, seeking professional guidance is essential, and at Tonoff Financial, we have a team of experienced estate planning attorneys and financial professionals who can provide comprehensive assistance. Our experts can help you integrate life insurance into your estate planning strategy effectively and create a plan that protects your legacy.\n\nIn conclusion, integrating life insurance into your estate planning strategy is a wise decision that safeguards the financial well-being of your loved ones. At Tonoff Financial, we have the expertise to help you navigate the intricacies of estate planning and create a tailored strategy that aligns with your goals. I highly recommend reading the full article for a deeper understanding of this essential topic and reaching out to our team for personalized assistance.\n\nVisit our site (in the comments)\n\n#LifeInsurance #EstatePlanning #FinancialSecurity #LegacyProtection #BeneficiaryDesignation #TonoffFinancial #ExpertGuidance",
+              "time": "1 year ago",
+              "urn": "7072046399550361600"
+            },
+            {
+              "images": [],
+              "num_comments": 1,
+              "num_likes": 4,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7072001876564611072/",
+              "posted": "2023-06-07 00:10:38",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🎩🐇 Abracadabra! Unleash the Power of Sales Prospecting! 🎩🐇\n\nHellooooo, #SalesBeauties! 🌞🌈 Ever feel like you're Ace Ventura on a wild quest for that elusive white bat... I mean, viable sales opportunities? Well, fear not! I've stumbled upon a treasure map leading straight to prospecting success! 🏆🎉\n\n1️⃣ Prospecting, You Say? 🤔\nIt's like being a detective, but instead of solving crimes, we're finding potential customers! It's all about the thrill of the chase, folks! 🕵️‍♀️🔍\n\n2️⃣ Why Should I Care, You Ask? 🌟\nWell, let me tell ya! Prospecting lets us connect with potential customers whose needs match our solutions. It's like a perfect dance routine, every step in sync! And guess what? More than 7 out of 10 buyers are waiting for our grand entrance. So, let's not disappoint them! 💃🕺\n\n3️⃣ How Do I Prospect, You Wonder? 🚀\nStart by doing your homework on your prospect and their business, then prioritize them like you're choosing the best donut from the box. Whip up a personalized pitch that's as unique as you are, make a grand first impression, and always look for ways to improve your routine. Remember, we're here to help, not sell. It's showtime! 🎬🎥\n\n4️⃣ Gimme Some Tips, You Plead! 🎩\nFrom playing Sherlock on your prospects' career pages to using the GPCTBA/CI sales qualification framework (it's not as scary as it sounds, I promise!), there are plenty of ways to jazz up your prospecting game. And don't forget to ask for referrals! It's like asking for extra sprinkles on your ice cream. 🍦🌈\n\nRemember, my friends, sales prospecting isn't a one-and-done deal, it's a continuous journey. So, let's keep learning, improving, and prospecting! Let's put a little razzle-dazzle into our sales game! 🎉🚀\n\nFor more nuggets of wisdom, check out the full article on HubSpot's blog (link in comments). Happy prospecting, everybody! 🎈🎊\n\n#SalesProspecting #SalesTips #BusinessGrowth",
+              "time": "1 year ago",
+              "urn": "7072001876564611072"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070498317868158976/",
+              "posted": "2023-06-02 20:36:02",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🌟 TGIF, LinkedIn fam! 🌟\n\nYou know, Friday is a special day. It's like the superhero of weekdays, swooping in to save us from the villains of stress and deadlines. And if there's one thing that Friday deserves, it's a big ol' dose of self-care!\n\nNow, self-care means different things to different people. Some like to relax with a bubble bath, while others prefer binge-watching their favorite show with a bucket of popcorn. Me? Well, I like to take self-care to the next level. I treat myself to an extra hour of sleep, then wake up and realize I'm already late for work! 😂\n\nBut hey, that's the beauty of self-care – it's all about doing what makes YOU feel good. Whether it's indulging in your favorite guilty pleasure or taking a long walk to clear your mind, Friday is the perfect day to recharge and rejuvenate.\n\nRemember, folks, life is a marathon, not a sprint. And just like any marathon runner, you need to take care of yourself to reach that finish line. So, go ahead and pamper yourself. Get that massage you've been putting off, or splurge on a fancy coffee that costs more than your entire lunch budget. Because you deserve it, my LinkedIn superheroes!\n\nAnd let's not forget about the power of laughter. As the legendary Norm Macdonald once said, \"I'm pretty sure the dinosaurs died out when they realized Norm was in the crowd.\" 😄 So, take a moment to find the humor in life, even when things get tough. Laughter truly is the best self-care medicine.\n\nSo, my LinkedIn warriors, as we dive into this glorious Friday, let's make a pact. Let's embrace the magic of self-care and celebrate the weekend like it's the biggest party in town. Because when Monday comes knocking, we'll be ready, refreshed, and armed with enough coffee to power a spaceship to Mars!\n\nHave an amazing Friday, folks, and remember to take care of yourself. You're doing incredible things, and the world needs your brilliance!\n#SelfCareFriday #TGIF #LinkedInSuperheroes",
+              "time": "1 year ago",
+              "urn": "7070498317868158976"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 0,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070497030418173953/",
+              "posted": "2023-06-02 20:30:55",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🎩🎭 Good day, my esteemed LinkedIn network! 🌞\n\n📣 Let's dive into the world of B2B enterprise sales in 2023! 🚀💼\n\n🎯 First, let's acknowledge the digital landscape! 🐘💻 It's a wild west out there, but instead of cowboys and tumbleweeds, we've got data analysts, social media stars, and project managers! 🤠🤖\n\n✅ Adaptability is the key to success! 🦎 Just like a chameleon changing colors, we've got to change our sales strategies to match the ever-evolving digital terrain. 🔄🌈\n\n🔥 Remember, folks, it's not about the hard sell anymore. It's about building relationships, understanding needs, and providing solutions. 🤝💡 It's like being a good friend who just happens to have the perfect product in their back pocket! 🎁👖\n\n🎲 Personalization is crucial! 🎨 In a world full of generic sales pitches, be the Bob Ross of B2B sales - make every interaction a unique masterpiece! 🖼️🖌️\n📚 Knowledge is power! 🧠💪 Become a subject matter expert in your industry to close sales. The more you know, the more value you can provide to your clients. 📖🔍\n\n📈 Embrace the digital channels! 🌐📱 #HubSpot research says that phone calls, emails, and video chats are the most effective remote sales channels. And 57% of C-level buyers prefer phone outreach. 📞💻\n\n🎈 Here's to another exciting year in the world of B2B enterprise sales! 🥂🎉\n\n#B2B #EnterpriseSales #2023 #Adaptability #Personalization #RelationshipBuilding\n\nRemember, you're only given a little spark of madness. You mustn't lose it! 🌟🎭\n\nStay tuned for more updates from the wild, wild west of B2B sales! 📡🌵\nOver and out! 🎤⬇️",
+              "time": "1 year ago",
+              "urn": "7070497030418173953"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 5,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070200417879535616/",
+              "posted": "2023-06-02 00:52:17",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "LA living - it's a hoot!\n\nPicture this. I’m walking down Sunset Boulevard, minding my own business, when suddenly a stranger does a double-take. It’s a regular occurrence, believe it or not. They squint, a look of intrigue on their face, and then the inevitable comparison comes out - “You know, you look like someone…”\n\nAnd just like a Netflix roulette, it’s one of three choices: Justin Timberlake, Aaron Paul, or Robert Pattinson. No consistency, mind you. It's like I'm caught in a bizarre game of celebrity guess who. Is it the Timberlake dance moves, the Aaron Paul intensity, or the brooding Pattinson glare? Who knows? And more importantly, do I get their royalties?\n\nNow, here's the punchline. I'm not poppin' dance moves on stage, cooking up drama in the desert, or battling supernatural creatures in my spare time. No, sir! I'm just a humble B2B marketing consultant, spinning magic for enterprise technology companies. In a city of stars, I'm just a guy helping you figure out your #demandgeneration strategy. But hey, isn't that a kind of celebrity status in the business world?\n\nThink about it, in the LA of enterprise tech, I'm your Robert Pattinson. Though instead of brooding on screen, I'm optimizing your conversion rates. Instead of catchy Timberlake tunes, I've got engaging marketing content that will make your target audience dance in delight. And like Aaron Paul, I can promise you high-octane, 'Breaking-Bad' level marketing strategies, minus the illegal stuff of course.\n\nSo, the next time you need a dash of celebrity, with a heaping helping of marketing savvy, you know who to call. Because in this town, everyone's ready for their close-up, even B2B marketers!\n\n#LA #marketing #enterprise #B2BCelebrity",
+              "time": "1 year ago",
+              "urn": "7070200417879535616"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070164017293512704/",
+              "posted": "2023-06-01 22:27:39",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Hey there, folks! Who's got their hand raised high for closing deals today? I mean, come on, it's like the ultimate victory dance, isn't it? Picture this: You're sitting at your desk, wearing your lucky socks (we all have 'em), and you're like a deal-closing ninja, effortlessly sealing the deal left and right. It's like you're on a roll, and no one can stop you. You're practically the LeBron James of closing deals. Swish! So, if you're out there, hustling and high-fiving yourself for every successful negotiation, just remember, you're not alone. We're all in this crazy, deal-closing circus together. Let's keep those hands up and keep bringing in the wins! 💪😄 #DealClosingDynamos #MakingItRainDeals",
+              "time": "1 year ago",
+              "urn": "7070164017293512704"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070156830152265728/",
+              "posted": "2023-06-01 21:59:05",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Friends, Marketers, Countrymen and women, lend me your ears; I come to share wisdom, not to bewilder. The noble art of B2B marketing, a task most daunting, yet filled with potential, doth require a strategy both sound and flexible.\n\nTo target thy buyer persona accurately, 'tis the cornerstone of success. For if thou art not reaching the right audience, thy promotions and advertisements may as well be whispers in the wind.\n\nConsider the difference 'twixt marketing to individual consumers and businesses. The latter, a dance more complex, calls for a different tune — a tune we call B2B marketing.\n\nRemember, 'tis not the companies thou art wooing, but the people within them. Understand their needs, their desires, their challenges, and thou shalt find the key to their hearts and their wallets.\n\nIn the realm of B2B, we are all but humble learners. Yet, fear not, for with knowledge comes power, and with power, success. So, arm thyself with the right strategies, and thou shalt conquer the B2B space.\n\nTo be, or not to be, a successful B2B marketer, that is the question. The answer lies within thy strategy, thy understanding of thy audience, and thy ability to adapt and evolve.\n\nSo, go forth, brave marketers, and conquer the B2B world. For in the end, we are all but players on the stage of business, and success is the sweetest fruit of our labor.\n\n#B2BMarketing #BusinessStrategy #ShakespeareanWisdom",
+              "time": "1 year ago",
+              "urn": "7070156830152265728"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070151568725061632/",
+              "posted": "2023-06-01 21:38:11",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "👋 Hello Dreamers and Innovators,\n\nAs summer unfolds, bathing us in its warm, golden glow ☀️, we stand on the precipice of a multitude of possibilities. This is a season of growth 🌱, of life in its fullest expression. But it's not just about flourishing in our external environment. The real journey, the true adventure, begins within us 💫.\n\nSteve Jobs inspired us to be bold, to change the status quo, to make an impact that echoes beyond us 🌎. His vision, his passion for innovation 💡, constantly reminds us that we're here to do more than just exist - we are here to leave a mark.\n\nSimilarly, Gary Vaynerchuk embodies the spirit of relentless hustle 💪. He stands as a testament to the fact that success isn't a lucky draw, it's a painstaking process. It's the result of countless hours of hard work, countless moments of resilience, and an unshakeable belief in one's self 💼.\n\nBut the grind isn't the whole picture. Enter Bob Marley, a man who lived his life like a song 🎶, each moment rich with joy, love, and peace. His life reminds us that while ambition is important, it is equally crucial to find happiness in our journey, to weave love and laughter into the fabric of our days 😄.\n\nAnd then there's the wisdom of Maya Angelou, which prompts us to look inward, to understand that success begins with self-love and self-belief ❤️. She urges us to measure our success not merely by what we achieve externally, but by how we feel about ourselves, our work, and the way we navigate our journey.\n\nThis summer, let's channel these incredible individuals. Let's marry Jobs' innovative spirit with Vaynerchuk's tireless hustle, balance it with Marley's boundless joy, and anchor it in Angelou's profound wisdom 🤝.\n\nStay passionate, stay resilient. Embrace the grind, revel in the joy, cherish yourself, and above all, dare to dream 🌈. Your ideas have the power to transform not just your life, but the world. This summer, let those ideas take flight 🚀.\n\nHere's to you, the dreamers, the doers, the game-changers. The ones audacious enough to believe they can change the world, and who are just crazy enough to actually do it 🎯.\n\n#SummerInspiration #SelfLove #DreamBig #Leadership #Hustle",
+              "time": "1 year ago",
+              "urn": "7070151568725061632"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 4,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070129261210185729/",
+              "posted": "2023-06-01 20:09:32",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Subject: The Value of Building Lean Products and Profitable Small Businesses\n\nDear Network,\n\nI recently shared a thought on Twitter which was inspired by the observation that, increasingly, startup founders are falling into the \"unicorn or bust\" mindset, believing that unless their companies reach billion-dollar valuations, they've somehow failed. The tweet was: “More founders should be building lean products that can profit relatively quickly and don't cost a fortune. You don't need a billion-dollar company to make your first $5M.”\n\nThe idea of creating a billion-dollar business can be captivating, and it's true that such ventures can lead to substantial innovation and disrupt industries. However, it's important to remember that not all businesses need to, or indeed should, operate on that model. There's a lot to be said for building lean, agile businesses that are focused on profitability and sustainability from the early stages.\n\nBuilding a lean product means focusing on the essentials - the key features that your target customers truly need. This doesn't mean skimping on quality or user experience; rather, it means removing unnecessary bloat and complexity. By focusing on delivering a product that solves a key problem well, you can often get to market faster, iterate based on real user feedback, and maintain a sustainable business model without needing a constant influx of venture capital.\n\nFurther, focusing on early profitability can be liberating. It allows you to maintain control over your venture without being at the mercy of investors or external market conditions. It also provides a buffer to weather unforeseen storms and navigate through the inevitable highs and lows of business.\n\nThe aim isn't to discourage the pursuit of billion-dollar dreams but rather to spotlight the overlooked value of smaller, profitable ventures. The startup ecosystem needs diverse business models. Some founders will aim for the stars and build the next Uber or Airbnb. But others might find that their path to success, satisfaction, and even wealth doesn't require a billion-dollar valuation. In fact, many will find that their first $5M comes not from chasing unicorn dreams, but from building and scaling lean, profitable businesses.\n\nThe goal is to find the path that suits you best and to remember that success doesn't always come in the form of a billion-dollar valuation. We need to celebrate more types of successes in our ecosystem and remind ourselves that smaller, profitable businesses contribute significantly to our economy and communities.\n\nLet's continue to innovate, but let's also remember the value of lean, profitable businesses in our quest for success. After all, entrepreneurship is about more than just unicorns.\n\nBest,\nBrad",
+              "time": "1 year ago",
+              "urn": "7070129261210185729"
+            },
+            {
+              "images": [],
+              "num_comments": 1,
+              "num_empathy": 1,
+              "num_likes": 12,
+              "num_praises": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7070117900417699840/",
+              "posted": "2023-06-01 19:24:23",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "I'm about to hit the 3-year anniversary as the Independent Marketing Consultant to my clients. We've been at this for so long, we're practically common-law married!\n\nWe've been busy bees, let me tell ya:\n\n✅ Crafted a strategic narrative. It's like we wrote a novel, but without the plot twist!\n✅ Revamped the homepage copy. We've got more fresh lines than a supermarket produce aisle!\n✅ Overhauled the website. Out with the old, in with the... also old, but made to look new!\n✅ Jazzed up the product tour. It's like a funhouse, but with less mirrors and more sales!\n✅ Produced more podcasts than you can shake a stick at. Who even shakes sticks anymore?\n✅ Kicked off a regular live event. It's like a house party, but with powerpoints and pie charts!\n✅ Fired off ads on LinkedIn and Facebook. We're popping up on screens like unwanted pop-up ads... but wanted!\n✅ Started a YouTube video series. We've got more episodes than a daytime soap opera!\n\nThis 1,080-day marketing odyssey is like a sitcom without a laugh track — a work-in-progress. \n\nEverything we launched wasn't perfect, I mean come on, who even aims for 90%? But we put it out there! It's like serving a cake before it's done baking — we find out real quick if the recipe's any good.\n\nWe've changed directions more times than a lost tourist with a faulty GPS. \n\nRemember, marketing is just like cooking. You gotta get the basics right, or you'll end up with a burnt casserole of a campaign. \n\n✅ Study your customers. They're more complex than an Agatha Christie novel.\n✅ Figure out the top 5-10 problems they face. And I'm not talking about them deciding what to have for lunch.\n✅ Connect those problems with your product's solutions. Like a matchmaker, but for business.\n\nSure, I've simplified it a bit, but isn't life complicated enough already?\n\nAnd let me tell you something — it's working. We're seeing more green than a garden in springtime! 🤑\n\n#b2bmarketing #marketingstrategy #3years #customerresearch #saasmarketing",
+              "time": "1 year ago",
+              "urn": "7070117900417699840"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 0,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7069821558814371840/",
+              "posted": "2023-05-31 23:46:50",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🎵 Early in the morning, rising to the street, B2B marketers step to the beat 🎵\n\nIn the world of B2B marketing, finding the reasons behind success or challenges is crucial. We've all faced financial constraints, but the ability to adapt and overcome is what sets us apart.\n\nJust like playing the guitar with passion, we strum the strings of data and insights to create impactful campaigns. Life is short, so let's make the most of our opportunities and appreciate the strategies we have.\n\nIn this ever-changing landscape, avoiding conflicts and embracing a dynamic approach is vital. No protective gear needed; we tackle challenges head-on, fearlessly navigating the market.\n\nTake a small example from me: utilize your marketing budget to invest in your customers and contribute to the community. Love is at the heart of what we do, within our reach to make a meaningful impact.\n\nWith a distinctive style reminiscent of Sublime from Long Beach, we bring our own flavor to the B2B marketing scene. Remember, it all comes back to you—deliver value, and you'll receive what you deserve.\n\nWhile we may face occasional tests and hurdles, our passion and dedication keep us going strong. Let the rhythm of marketing heat up, and remember that love is at the core of our work.\n\nSo, why worry when things don't go as planned? We stay resilient, finding solutions, and embracing the unique challenges we face. Love is what drives our success.\n\nLet the love for B2B marketing return to us, as we build meaningful connections and drive impactful results. Remember, love is what we've got—embrace it and let's keep rocking the B2B world! 🎸💼 #B2BMarketing #LoveWhatYouDo",
+              "time": "1 year ago",
+              "urn": "7069821558814371840"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 0,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7069771299769782272/",
+              "posted": "2023-05-31 20:27:07",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🤔 You see, my fellow marketers, we're the unsung heroes of the business world. We're the ones who craft those brilliant campaigns, design eye-catching creatives, and come up with the catchiest slogans that stick in people's heads like glue. Yet, somehow, we get treated like the cousin no one wants to sit next to at Thanksgiving dinner.\n\n💼 Salespeople, don't get me wrong—I know you work hard too. But let's face it, without us marketers paving the way, your prospects would be left in the dark. We're the ones who create the buzz, generate the leads, and make your job easier. We deserve a little more respect, don't you think?\n\n🚀 So, how do we fix this unbalanced equation? Well, first and foremost, it starts with us. We need to stand up and demand the respect we deserve. Let's show our colleagues and our organizations what we're made of, day in and day out. Let's highlight the impact of our marketing strategies on the bottom line, and make it impossible to ignore.\n\n🔥 Secondly, let's educate the masses. Many people underestimate the power of marketing and the tremendous value we bring to the table. It's time to break the stereotypes and showcase the skills, expertise, and creativity that make us indispensable. Let's share success stories, engage in thought leadership, and show the world that marketing ain't no joke!\n\n🙌 And lastly, let's foster collaboration and mutual appreciation. Sales and marketing go hand in hand like peanut butter and jelly, like yin and yang. We're a team, working toward the same goal. By understanding and respecting each other's roles, we can create a harmonious environment that celebrates the unique contributions we bring to the table.\n\n🎉 So, my fellow marketers, let's unite and show the world that we're not just the underdogs but the driving force behind success. It's time to get the respect we deserve! And remember, as Rodney Dangerfield famously said, \"I don't get no respect, no respect at all!\" But together, we can change that narrative and make sure marketing gets its due. Stay strong, stay creative, and keep rockin' the marketing world! 🎉\n\n#NoRespect #MarketersUnite #DemandingRespect",
+              "time": "1 year ago",
+              "urn": "7069771299769782272"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7069727073396785153/",
+              "posted": "2023-05-31 17:31:23",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Profit from opportunities, not passions. Observe the market, ask: 'Where's the value, minimal risk, and high success chance?' Business isn't just about doing what you love. It's about hiring, managing, selling. And you'll love the game of entrepreneurship.",
+              "time": "1 year ago",
+              "urn": "7069727073396785153"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQF31nQmVcmnIw/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1685500433510?e=1743033600&v=beta&t=6J__BkQM9VT49evOzvVsQlBAwlhY2IcV1lncWgR8D4o"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7069501217474826240/",
+              "posted": "2023-05-31 02:33:55",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Response one of my clients received today from a cold email campaign.\n\nNeed help with cold email? Let’s connect!",
+              "time": "1 year ago",
+              "urn": "7069501217474826240"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 2,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7069423283539972096/",
+              "posted": "2023-05-30 21:24:14",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "What's the deal with email open rates? I mean, are they like those calorie counts on food labels that we all know are just approximations?\n\nAccording to an article I read on Vibetrace, email open rates are about as reliable as a weather forecast. They're measured using a tiny, transparent image placed at the bottom of the email. When the email client opens the email and loads the images, this image gets loaded too, and the server knows who loaded the image, therefore increasing the value. Sounds foolproof, right?\n\nWell, not so fast. Just like that time you thought you could assemble that IKEA furniture without the instructions, things aren't always as they seem.\n\nTurns out, there are tens or even hundreds of email clients. Mobile apps, desktop apps, web versions - it's like trying to keep track of all the different types of coffee at Starbucks. And each of these clients handles email opens differently. So, your open rate might be more inflated than a beach ball at a summer pool party.\n\nSo, what should we focus on instead? How about something a little more tangible, like form fills? It's like counting the number of people who actually showed up to your party, not just those who said they might come on the Facebook event.\n\nIn the end, it's not about how many people opened your email, but how many took action. Because let's face it, we've all opened emails just to get rid of that annoying notification, right?\n\nSo, let's stop obsessing over open rates and start focusing on what really matters. Because, just like that time Kramer tried to cook a steak on his car engine, sometimes the conventional way isn't always the best way.\n\n#emailmarketing #Hubspot #MailChimp #ActiveCampaign #demandgeneration",
+              "time": "1 year ago",
+              "urn": "7069423283539972096"
+            },
+            {
+              "images": [],
+              "num_comments": 0,
+              "num_likes": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7067952756187168768/",
+              "posted": "2023-05-26 20:00:53",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🎙️ What's the deal with email deliverability? It's like trying to throw a paper airplane into a mailbox. Sometimes it lands perfectly, other times it's in the neighbor's rose bush. 🌹\n\nYou've got these DNS records, SPF, DKIM, DMARC - it's like alphabet soup! And you're supposed to set them up properly. But let's be honest, most of us can't even set up a tent, let alone DNS records. 🏕️\n\nAnd then there's the issue of bounces. It's like a bad game of ping pong. You send an email, it comes right back at you. You're not playing catch, you're trying to do business! 🏓\n\nAnd don't get me started on sending volume. They say you have to 'ramp it up' slowly. It's like trying to climb a mountain, but you're not allowed to use your legs. You have to crawl up one inch at a time. 🏔️\n\nBut here's the kicker: personalizing your emails. They say it can lift your results by 112%. That's like getting a double scoop of ice cream for the price of one. Who wouldn't want that? 🍦\n\nNow, if all this talk about email deliverability is making your head spin, don't worry. I'm your guy. They call me the email deliverability whisperer. Patrick Dichter, Owner at Appletree Business Services, said \"Brad set up our cold email process to ensure my emails landed in prospects' inbox, avoiding spam completely.\" That's like having a GPS for your emails. 🛰️\n\nSo, if you're tired of your emails ending up in the spam folder, give me a call, and let's turn your email deliverability woes into wins! 🎉",
+              "time": "1 year ago",
+              "urn": "7067952756187168768"
+            },
+            {
+              "images": [],
+              "num_comments": 1,
+              "num_likes": 1,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7067948950187642880/",
+              "posted": "2023-05-26 19:45:45",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "🎙️ What's the deal with lead scoring? I mean, it's like dating, right? You're trying to figure out who's really interested in you and who's just swiping right for fun. 🤷‍♂️\n\nYou've got these leads coming in, and it's like a buffet. But you can't just pile everything on your plate! You've got to be selective. That's where lead scoring comes in. It's like the bouncer at the club, deciding who gets in and who's left standing outside. 🚪\n\nAnd how do we score these leads? Well, it's not like a game of darts, folks. You've got to look at their professional info, their engagement with your brand, and even their social media presence. It's like being a detective, but instead of solving crimes, you're solving sales! 🕵️‍♂️\n\nAnd let's talk about these lead scoring models. They're like fashion models, but for data. You've got demographic info, company info, online behavior, email engagement, social engagement, and even spam detection. It's like a beauty pageant for leads! 👑\n\nBut remember, folks, lead scoring isn't a one-size-fits-all deal. As your company grows, you might need to create different scores for different audiences. It's like having different outfits for different occasions. You wouldn't wear a tuxedo to the beach, would you? 🏖️\n\nSo, if you're drowning in leads and don't know who to call back, give lead scoring a try. It might just be the life preserver you need! 🆘\n\nAnd speaking of scoring, let me, Brad Tonoff, help you hit the bullseye. Joshua Goldstein, VP of Business Development and Partnerships at UrbanfootPrint, said my work \"helped generate over $1M in qualified opportunities in a single quarter.\" That's like hitting a home run in the bottom of the ninth! So, why not get in touch and let's turn your leads into loyal customers together. It's like having your own personal sales comedian, but with actual results! 🎉",
+              "time": "1 year ago",
+              "urn": "7067948950187642880"
+            },
+            {
+              "images": [
+                {
+                  "url": "https://media.licdn.com/dms/image/v2/D5622AQH3iGuhC0XL0g/feedshare-shrink_2048_1536/feedshare-shrink_2048_1536/0/1684347950321?e=1743033600&v=beta&t=Z_cLfEarAOSIA5jgGqhMtIcriV_j2VKZ8Ls_zVp-paw"
+                }
+              ],
+              "num_comments": 0,
+              "num_likes": 0,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7064667348728758272/",
+              "posted": "2023-05-17 18:25:51",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Ever wonder why your health insurance is so expensive? https://lnkd.in/gSRAr_cS",
+              "time": "1 year ago",
+              "urn": "7064667348728758272"
+            },
+            {
+              "images": [],
+              "num_comments": 6,
+              "num_likes": 6,
+              "num_reposts": 0,
+              "post_url": "https://www.linkedin.com/feed/update/urn:li:activity:7042297290371305472/",
+              "posted": "2023-03-17 00:55:13",
+              "poster": {
+                "first": "Brad",
+                "headline": "Founder and CEO at BJT Insurance Solutions",
+                "last": "Tonoff",
+                "public_id": "bradtonoff",
+                "urn": "ACoAAASWDlcBcQYhzQGue1Y9jUGcDZR-Jp-HFUU"
+              },
+              "poster_linkedin_url": "https://www.linkedin.com/in/bradtonoff",
+              "reshared": false,
+              "text": "Sales reps love to hate on marketing teams. \n\nUntil there’s no marketing help, then they love to complain that they aren’t getting any support.\n\nAm I wrong?",
+              "time": "2 years ago",
+              "urn": "7042297290371305472"
+            }
+          ],
+          "message": "ok",
+          "paging": {
+            "count": 50,
+            "pagination_token": "dXJuOmxpOmFjdGl2aXR5OjcwNDIyOTcyOTAzNzEzMDU0NzItMTY3OTAxNDUxMzU2NA==",
+            "start": 0
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter linkedin profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "scrape_website": {
+      "main": [
+        [
+          {
+            "node": "cleaned_content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cleaned_content": {
+      "main": [
+        [
+          {
+            "node": "Summarization Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarization Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        []
+      ]
+    },
+    "Summarization Chain": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        []
+      ]
+    },
+    "scrape_linkedin_profile": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "map fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Set about",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter linkedin profiles": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "map fields": {
+      "main": [
+        [
+          {
+            "node": "scrape_linkedin_profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set about": {
+      "main": [
+        []
+      ]
+    },
+    "edit objects": {
+      "main": [
+        [
+          {
+            "node": "scrape_website",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "edit objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields5": {
+      "main": [
+        [
+          {
+            "node": "Lead Enrichment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Appointments & Calls",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Meeting prep Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "lnkedin data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meeting prep Agent": {
+      "main": [
+        [
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Meeting prep Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get lead": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "account 2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Meeting prep Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "Gmail1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lnkedin data": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "account 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract and limit Linkedin": {
+      "main": [
+        [
+          {
+            "node": "Generate Subject and cover letter based on match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate Subject and cover letter based on match",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get linkedin Posts": {
+      "main": [
+        [
+          {
+            "node": "Extract and limit Linkedin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Subject and cover letter based on match",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set your company's variables": {
+      "main": [
+        [
+          {
+            "node": "Get linkedin Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Subject and cover letter based on match": {
+      "main": [
+        [
+          {
+            "node": "send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send email": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send campaign",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rewrite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Rewrite",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Rewrite",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rewrite": {
+      "main": [
+        [
+          {
+            "node": "send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Enrichment": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "2gLR5bciIZCpJZRE"
+  },
+  "versionId": "9a578495-da25-4982-b4fb-dbdc57035360",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db80165df40cb07c0377167c050b3f9ab0b0fb04f0e8cae0dc53f5a8527103ca"
+  },
+  "id": "W9KayIT2HlGQ40dC",
+  "tags": []
+}
