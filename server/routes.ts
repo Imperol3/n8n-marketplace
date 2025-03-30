@@ -13,9 +13,14 @@ import { promisify } from "util";
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  try {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  } catch (error) {
+    console.error('Password hashing error:', error);
+    throw new Error('Failed to hash password');
+  }
 }
 
 // Update webhook function to use environment variables for external notifications
@@ -77,80 +82,83 @@ export function registerRoutes(app: Express): Server {
 
   // Add these routes after setupAuth(app);
 
-  // Update the user creation API endpoint to handle passwords properly
-  app.post("/api/v1/users", async (req, res) => {
-    try {
-      // Validate required fields
-      const { username, email, role = "user", tier = "free", password } = req.body;
+  // Update the user creation API endpoint to handle registrations properly
+app.post("/api/v1/users", async (req, res) => {
+  try {
+    // Validate required fields
+    const { username, email, password } = req.body;
 
-      if (!username || !email) {
-        return res.status(400).json({ 
-          success: false,
-          message: "Username and email are required" 
-        });
-      }
-
-      // Check if user exists
-      const existingUser = await storage.getUserByUsername(username);
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: "Username already exists"
-        });
-      }
-
-      // Generate password if not provided
-      const temporaryPassword = password || Math.random().toString(36).slice(-8);
-
-      // Create user with hashed password
-      const user = await storage.createUser({
-        username,
-        email,
-        password: await hashPassword(temporaryPassword),
-        role,
-        preferences: {
-          tier,
-          interests: []
-        },
-        metadata: {
-          isFirstLogin: true,
-          lastLogin: new Date().toISOString()
-        }
-      });
-
-      // Send webhook notification
-      await sendWebhookNotification({
-        type: 'new_user',
-        username,
-        email,
-        temporaryPassword: password ? undefined : temporaryPassword,
-        message: `New user account created for ${email}`,
-        loginUrl: `${process.env.APP_URL || 'https://your-app.repl.co'}/auth`
-      });
-
-      // Return response with temporary password if it was auto-generated
-      res.status(201).json({
-        success: true,
-        message: "User created successfully",
-        data: {
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            preferences: user.preferences
-          },
-          ...(password ? {} : { temporaryPassword })
-        }
-      });
-    } catch (error) {
-      console.error('Error creating user via API:', error);
-      res.status(400).json({
+    if (!username || !email || !password) {
+      return res.status(400).json({ 
         success: false,
-        message: error instanceof Error ? error.message : "Failed to create user"
+        message: "Username, email, and password are required" 
       });
     }
-  });
+
+    // Check if user exists
+    const existingUser = await storage.getUserByUsername(username);
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Username already exists"
+      });
+    }
+
+    // Check if this is the first user (make them admin)
+    const users = await storage.getUsers();
+    const role = users.length === 0 ? "admin" : "user";
+
+    // Create user with hashed password
+    const hashedPassword = await hashPassword(password);
+    const user = await storage.createUser({
+      username,
+      email,
+      password: hashedPassword,
+      role,
+      preferences: {
+        tier: "free",
+        interests: []
+      },
+      metadata: {
+        isFirstLogin: true,
+        lastLogin: new Date().toISOString()
+      }
+    });
+
+    // Log the user in automatically after registration
+    req.login(user, (err) => {
+      if (err) {
+        console.error('Auto-login error:', err);
+        return res.status(201).json({
+          success: true,
+          message: "User created successfully, please log in",
+          data: {
+            username: user.username,
+            email: user.email,
+            role: user.role
+          }
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: "User created and logged in successfully",
+        data: {
+          username: user.username,
+          email: user.email,
+          role: user.role
+        }
+      });
+    });
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to create user"
+    });
+  }
+});
 
   // Add password reset request endpoint
   app.post("/api/password-reset/request", async (req, res) => {
