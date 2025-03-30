@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { Workflow } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Card,
   CardContent,
@@ -12,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, ArrowRight, Image as ImageIcon } from "lucide-react";
+import { Download, ArrowRight, Image as ImageIcon, Star, StarOff } from "lucide-react";
 
 interface WorkflowCardProps {
   workflow: Workflow;
@@ -28,11 +31,85 @@ export default function WorkflowCard({
   fallbackImage = ""
 }: WorkflowCardProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [imageLoaded, setImageLoaded] = useState(false);
   
   // Extract workflow metadata
   const categories = workflow.metadata?.categories || [];
   const requiredTier = workflow.metadata?.requiredTier || "free";
+  
+  // Check if workflow is in user's favorites
+  const { data: favorites } = useQuery<Workflow[]>({
+    queryKey: ["/api/favorites"],
+    enabled: !!user,
+  });
+
+  const isFavorite = favorites?.some(fav => fav.id === workflow.id);
+  
+  // Add to favorites mutation
+  const addFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/favorites/${workflow.id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Added to Favorites",
+        description: "Workflow has been added to your favorites"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add to favorites",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Remove from favorites mutation
+  const removeFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/favorites/${workflow.id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Removed from Favorites",
+        description: "Workflow has been removed from your favorites"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove from favorites",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Toggle favorite status
+  const toggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to save workflows to favorites",
+        variant: "default"
+      });
+      return;
+    }
+    
+    if (isFavorite) {
+      removeFavoriteMutation.mutate();
+    } else {
+      addFavoriteMutation.mutate();
+    }
+  };
   
   // Determine if the user can download this workflow
   const canDownload = (): boolean => {
@@ -60,6 +137,23 @@ export default function WorkflowCard({
     <Card className="flex flex-col overflow-hidden transition-all duration-200 hover:shadow-md h-full">
       <Link href={`/workflows/${workflow.id}`} className="flex-1 cursor-pointer">
         <div className="relative w-full h-48 bg-muted/40 overflow-hidden">
+          {/* Favorite button */}
+          {user && (
+            <Button
+              size="icon"
+              variant={isFavorite ? "default" : "outline"}
+              className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full shadow-md bg-background/80 hover:bg-background transition-colors duration-200"
+              onClick={toggleFavorite}
+            >
+              {isFavorite ? (
+                <Star className="h-4 w-4" fill="currentColor" />
+              ) : (
+                <Star className="h-4 w-4" />
+              )}
+              <span className="sr-only">{isFavorite ? 'Remove from favorites' : 'Add to favorites'}</span>
+            </Button>
+          )}
+          
           {!useFallbackImage && workflow.featuredImage ? (
             <>
               {!imageLoaded && (
