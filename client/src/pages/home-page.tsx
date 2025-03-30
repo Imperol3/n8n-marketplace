@@ -45,14 +45,7 @@ export default function HomePage() {
   };
 
   const { data: workflows = [], isLoading, error, refetch } = useQuery<Workflow[]>({
-    queryKey: ["/api/workflows"],
-    onError: (error: Error) => {
-      toast({
-        title: "Error loading workflows",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+    queryKey: ["/api/workflows"]
   });
 
   // Get the user's tier
@@ -79,7 +72,7 @@ export default function HomePage() {
     if (!searchTerm.trim()) return workflows;
     
     const searchLower = searchTerm.toLowerCase();
-    return workflows.filter((workflow) => {
+    return (workflows as Workflow[]).filter((workflow: Workflow) => {
       // Search in title and description
       const titleMatch = workflow.title?.toLowerCase().includes(searchLower);
       const descMatch = workflow.description?.toLowerCase().includes(searchLower);
@@ -145,7 +138,7 @@ export default function HomePage() {
     if (!workflows) return [];
     
     // Extract categories from workflow metadata
-    const allCategories = workflows.flatMap(workflow => 
+    const allCategories = (workflows as Workflow[]).flatMap((workflow: Workflow) => 
       workflow.metadata?.categories || []
     ).filter(Boolean); // Remove any undefined or null categories
     
@@ -157,7 +150,7 @@ export default function HomePage() {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: 0 };
     
-    workflows.forEach((workflow: Workflow) => {
+    (workflows as Workflow[]).forEach((workflow: Workflow) => {
       if (isWorkflowAvailable(workflow)) {
         counts.all = (counts.all || 0) + 1;
         
@@ -306,7 +299,7 @@ export default function HomePage() {
         <div className="mb-6 overflow-x-auto pb-2">
           <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
             <TabsList className="mb-4">
-              {categories.map(category => (
+              {categories.map((category: string) => (
                 <TabsTrigger key={category} value={category} className="capitalize whitespace-nowrap">
                   {category}
                   {categoryCounts[category] > 0 && (

@@ -121,6 +121,11 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
+      // Ensure email is present and valid
+      if (!req.body.email) {
+        return res.status(400).send("Email is required");
+      }
+
       const user = await storage.createUser({
         ...req.body,
         role: "user", 
@@ -132,6 +137,7 @@ export function setupAuth(app: Express) {
         res.status(201).json(user);
       });
     } catch (error) {
+      console.error("Registration error:", error);
       next(error);
     }
   });

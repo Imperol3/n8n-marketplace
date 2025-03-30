@@ -48,8 +48,12 @@ export default function AuthPage() {
     mode: "onChange"
   });
 
+  // Check if user is already logged in and redirect to home page
   if (user) {
-    setLocation("/");
+    // Use a useEffect to avoid React state updates during render
+    setTimeout(() => {
+      setLocation("/");
+    }, 0);
     return null;
   }
 
