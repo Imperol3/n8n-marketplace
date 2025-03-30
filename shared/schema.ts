@@ -136,3 +136,15 @@ export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
 export type Workflow = typeof workflows.$inferSelect;
 export type InsertDomain = z.infer<typeof insertDomainSchema>;
 export type Domain = typeof domains.$inferSelect;
+
+// Analytics tracking
+export const analytics = pgTable("analytics", {
+  id: serial("id").primaryKey(),
+  totalUsers: serial("total_users").default(0),
+  activeUsers: jsonb("active_users").$type<Record<string, { lastActive: string, pageViews: number }>>().default({}).notNull(), // Stores userIds and timestamps
+  totalDownloads: serial("total_downloads").default(0),
+  downloadsPerWorkflow: jsonb("downloads_per_workflow").$type<Record<number, number>>().default({}).notNull(), // workflowId: count
+  lastUpdated: timestamp("last_updated").defaultNow()
+});
+
+export type Analytics = typeof analytics.$inferSelect;

@@ -411,6 +411,130 @@ const UserDialog = ({ isOpen, onClose, editUser }: { isOpen: boolean; onClose: (
 };
 
 
+// Analytics component
+function AnalyticsCard() {
+  const { data: analyticsData, isLoading } = useQuery({
+    queryKey: ['/api/analytics'],
+    queryFn: async () => {
+      const res = await fetch('/api/analytics');
+      if (!res.ok) throw new Error('Failed to fetch analytics');
+      return res.json();
+    }
+  });
+  
+  if (isLoading) {
+    return (
+      <div className="p-6 border rounded-lg bg-card">
+        <div className="h-40 flex items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-t-2 border-primary rounded-full" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (!analyticsData) {
+    return (
+      <div className="col-span-3 p-6 border rounded-lg bg-card">
+        <h3 className="text-xl font-medium mb-2">Analytics</h3>
+        <p className="text-muted-foreground">No analytics data available</p>
+      </div>
+    );
+  }
+  
+  return (
+    <>
+      <div className="p-6 border rounded-lg bg-card shadow-sm">
+        <h3 className="text-xl font-medium mb-4">User Overview</h3>
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Users</p>
+            <p className="text-3xl font-bold">{analyticsData.totalUsers}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Active Users (Last 30 Days)</p>
+            <p className="text-3xl font-bold">{analyticsData.activeUsersDetails?.length || 0}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-6 border rounded-lg bg-card shadow-sm">
+        <h3 className="text-xl font-medium mb-4">Download Statistics</h3>
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Downloads</p>
+            <p className="text-3xl font-bold">{analyticsData.totalDownloads}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Unique Workflows Downloaded</p>
+            <p className="text-3xl font-bold">{analyticsData.downloadsPerWorkflowDetails?.length || 0}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-6 border rounded-lg bg-card shadow-sm">
+        <h3 className="text-xl font-medium mb-4">Most Popular Workflows</h3>
+        {analyticsData.downloadsPerWorkflowDetails?.length > 0 ? (
+          <div className="space-y-2">
+            {analyticsData.downloadsPerWorkflowDetails
+              .sort((a, b) => b.downloads - a.downloads)
+              .slice(0, 5)
+              .map((item, index) => (
+                <div key={index} className="flex justify-between items-center py-2 border-b border-border">
+                  <span>Workflow #{item.workflowId}</span>
+                  <span className="font-semibold">{item.downloads} downloads</span>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground">No downloads recorded yet</p>
+        )}
+      </div>
+      
+      <div className="p-6 border rounded-lg bg-card shadow-sm col-span-2">
+        <h3 className="text-xl font-medium mb-4">User Activity</h3>
+        {analyticsData.activeUsersDetails?.length > 0 ? (
+          <div className="overflow-hidden overflow-x-auto rounded-md border">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">User ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Active</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Page Views</th>
+                </tr>
+              </thead>
+              <tbody className="bg-card divide-y divide-border">
+                {analyticsData.activeUsersDetails
+                  .sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime())
+                  .map((user, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2 whitespace-nowrap">{user.userId}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        {new Date(user.lastActive).toLocaleDateString()} {new Date(user.lastActive).toLocaleTimeString()}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap">{user.pageViews}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">No user activity recorded yet</p>
+        )}
+      </div>
+      
+      <div className="p-6 border rounded-lg bg-card shadow-sm">
+        <h3 className="text-xl font-medium mb-4">System Information</h3>
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Last Updated</span>
+            <span>{analyticsData.lastUpdated ? new Date(analyticsData.lastUpdated).toLocaleString() : 'Never'}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function AdminPage() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -773,6 +897,7 @@ export default function AdminPage() {
           <TabsTrigger value="workflows">Workflows</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="tiers">Access Tiers</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="workflows">
@@ -1308,6 +1433,16 @@ export default function AdminPage() {
               ))}
             </TableBody>
           </Table>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Platform Analytics</h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <AnalyticsCard />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

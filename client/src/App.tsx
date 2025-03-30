@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import React, { useEffect } from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,8 +11,17 @@ import AdminPage from "@/pages/admin-page";
 import WorkflowDetailsPage from "@/pages/workflow-details";
 import UserDashboard from "@/pages/user-dashboard";
 import { ProtectedRoute } from "./lib/protected-route";
+import { setupAnalyticsTracking, trackPageView } from "./lib/analytics";
 
 function Router() {
+  // Get current location to track route changes
+  const [location] = useLocation();
+
+  // Track pageview whenever the location changes
+  useEffect(() => {
+    trackPageView();
+  }, [location]);
+
   return (
     <Switch>
       {/* Public routes */}
@@ -30,6 +40,11 @@ function Router() {
 }
 
 function App() {
+  // Initialize analytics tracking on app startup
+  useEffect(() => {
+    setupAnalyticsTracking();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

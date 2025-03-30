@@ -1,7 +1,7 @@
-import { User, InsertUser, Workflow, InsertWorkflow, Tier, InsertTier, Domain, InsertDomain } from "@shared/schema";
+import { User, InsertUser, Workflow, InsertWorkflow, Tier, InsertTier, Domain, InsertDomain, Analytics } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { users, workflows, accessTiers, domains } from "@shared/schema";
+import { users, workflows, accessTiers, domains, analytics } from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -54,6 +54,14 @@ export interface IStorage {
   createDomain(domain: InsertDomain): Promise<Domain>;
   updateDomain(id: number, domain: Partial<Domain>): Promise<Domain | undefined>;
   deleteDomain(id: number): Promise<boolean>;
+  
+  // Analytics operations
+  getAnalytics(): Promise<Analytics | undefined>;
+  incrementTotalUsers(): Promise<Analytics | undefined>;
+  recordUserActivity(userId: number): Promise<Analytics | undefined>;
+  incrementTotalDownloads(workflowId: number): Promise<Analytics | undefined>;
+  getActiveUsers(): Promise<{ userId: number, lastActive: string, pageViews: number }[]>;
+  getDownloadsPerWorkflow(): Promise<{ workflowId: number, downloads: number }[]>;
 
   sessionStore: session.SessionStore;
 }
@@ -377,6 +385,111 @@ export class DatabaseStorage implements IStorage {
     if (!workflow) return undefined;
 
     return workflow.metadata.documentation;
+  }
+
+  // Analytics operations
+  async getAnalytics(): Promise<Analytics | undefined> {
+    // Try to get existing analytics record
+    const [analyticsRecord] = await db.select().from(analytics);
+    
+    // If no record exists, create a new one
+    if (!analyticsRecord) {
+      const [newRecord] = await db.insert(analytics).values({}).returning();
+      return newRecord;
+    }
+    
+    return analyticsRecord;
+  }
+
+  async incrementTotalUsers(): Promise<Analytics | undefined> {
+    // Get or create analytics record
+    const analyticsRecord = await this.getAnalytics();
+    if (!analyticsRecord) return undefined;
+    
+    // Increment total users and update last updated timestamp
+    const [updatedRecord] = await db
+      .update(analytics)
+      .set({ 
+        totalUsers: analyticsRecord.totalUsers + 1,
+        lastUpdated: new Date()
+      })
+      .where(eq(analytics.id, analyticsRecord.id))
+      .returning();
+    
+    return updatedRecord;
+  }
+
+  async recordUserActivity(userId: number): Promise<Analytics | undefined> {
+    // Get or create analytics record
+    const analyticsRecord = await this.getAnalytics();
+    if (!analyticsRecord) return undefined;
+    
+    // Update active users record
+    const activeUsersData = analyticsRecord.activeUsers || {};
+    
+    // Update or add user activity
+    activeUsersData[userId] = {
+      lastActive: new Date().toISOString(),
+      pageViews: (activeUsersData[userId]?.pageViews || 0) + 1
+    };
+    
+    // Update record
+    const [updatedRecord] = await db
+      .update(analytics)
+      .set({ 
+        activeUsers: activeUsersData,
+        lastUpdated: new Date()
+      })
+      .where(eq(analytics.id, analyticsRecord.id))
+      .returning();
+    
+    return updatedRecord;
+  }
+
+  async incrementTotalDownloads(workflowId: number): Promise<Analytics | undefined> {
+    // Get or create analytics record
+    const analyticsRecord = await this.getAnalytics();
+    if (!analyticsRecord) return undefined;
+    
+    // Update downloads per workflow
+    const downloadsData = analyticsRecord.downloadsPerWorkflow || {};
+    downloadsData[workflowId] = (downloadsData[workflowId] || 0) + 1;
+    
+    // Update record
+    const [updatedRecord] = await db
+      .update(analytics)
+      .set({ 
+        totalDownloads: analyticsRecord.totalDownloads + 1,
+        downloadsPerWorkflow: downloadsData,
+        lastUpdated: new Date()
+      })
+      .where(eq(analytics.id, analyticsRecord.id))
+      .returning();
+    
+    return updatedRecord;
+  }
+
+  async getActiveUsers(): Promise<{ userId: number, lastActive: string, pageViews: number }[]> {
+    const analyticsRecord = await this.getAnalytics();
+    if (!analyticsRecord || !analyticsRecord.activeUsers) return [];
+    
+    // Convert object to array
+    return Object.entries(analyticsRecord.activeUsers).map(([userId, data]) => ({
+      userId: parseInt(userId),
+      lastActive: data.lastActive,
+      pageViews: data.pageViews
+    }));
+  }
+
+  async getDownloadsPerWorkflow(): Promise<{ workflowId: number, downloads: number }[]> {
+    const analyticsRecord = await this.getAnalytics();
+    if (!analyticsRecord || !analyticsRecord.downloadsPerWorkflow) return [];
+    
+    // Convert object to array
+    return Object.entries(analyticsRecord.downloadsPerWorkflow).map(([workflowId, downloads]) => ({
+      workflowId: parseInt(workflowId),
+      downloads
+    }));
   }
 }
 

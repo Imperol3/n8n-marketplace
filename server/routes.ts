@@ -107,6 +107,18 @@ const upload = multer({
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  // Add middleware to track user activity
+  app.use(async (req, res, next) => {
+    if (req.user && req.path.startsWith('/api/')) {
+      try {
+        await storage.recordUserActivity(req.user.id);
+      } catch (error) {
+        console.error('Error recording user activity:', error);
+      }
+    }
+    next();
+  });
+
   // Add these routes after setupAuth(app);
 
   // Update the user creation API endpoint to handle registrations properly
@@ -373,37 +385,8 @@ app.post("/api/v1/users", async (req, res) => {
     }
   });
 
-  // Download workflow file (authenticated users only)
-  app.get("/api/workflows/:id/download", isUser, async (req, res) => {
-    const workflow = await storage.getWorkflow(parseInt(req.params.id));
-    if (!workflow || !workflow.filePath) {
-      return res.status(404).json({ message: "Workflow file not found" });
-    }
-
-    // Check user's tier against workflow's required tier
-    const tiers = ["free", "tier1", "tier2", "premium"];
-    const userTier = req.user?.preferences?.tier || "free";
-    const requiredTier = workflow.metadata?.requiredTier || "free";
-
-    const userTierIndex = tiers.indexOf(userTier);
-    const requiredTierIndex = tiers.indexOf(requiredTier);
-
-    if (userTierIndex < requiredTierIndex) {
-      return res.status(403).json({ 
-        message: "Upgrade required",
-        currentTier: userTier,
-        requiredTier: requiredTier
-      });
-    }
-
-    try {
-      const filePath = fileStorage.getAbsolutePath(workflow.filePath);
-      res.download(filePath);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      res.status(404).json({ message: "Workflow file not found" });
-    }
-  });
+  // THIS ENDPOINT IS DUPLICATED - SEE THE UPDATED VERSION AT THE BOTTOM OF THIS FILE
+  // The updated version includes proper download tracking
 
   // Update workflow status (admin only)
   app.patch("/api/workflows/:id/status", isAdmin, async (req, res) => {
@@ -836,7 +819,47 @@ app.post("/api/v1/users", async (req, res) => {
     }
   });
 
-  // Update download route to record download history
+  // Analytics endpoints (admin only)
+  app.get("/api/analytics", isAdmin, async (_req, res) => {
+    try {
+      const analytics = await storage.getAnalytics();
+      if (!analytics) {
+        return res.status(404).json({ message: "Analytics not found" });
+      }
+      
+      // Get details for active users and downloads
+      const activeUsers = await storage.getActiveUsers();
+      const downloadsPerWorkflow = await storage.getDownloadsPerWorkflow();
+      
+      // Return comprehensive analytics data
+      res.json({
+        ...analytics,
+        activeUsersDetails: activeUsers,
+        downloadsPerWorkflowDetails: downloadsPerWorkflow
+      });
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+  
+  // Track user activity endpoint
+  app.post("/api/track/pageview", async (req, res) => {
+    try {
+      // Record for logged-in users
+      if (req.isAuthenticated()) {
+        await storage.recordUserActivity(req.user!.id);
+      }
+      
+      res.sendStatus(200);
+    } catch (error) {
+      console.error('Error recording user activity:', error);
+      // Still return success to avoid causing issues with the frontend
+      res.sendStatus(200);
+    }
+  });
+  
+  // Update download route to record download history and analytics
   app.get("/api/workflows/:id/download", isUser, async (req, res) => {
     try {
       const workflowId = parseInt(req.params.id);
@@ -875,15 +898,34 @@ app.post("/api/v1/users", async (req, res) => {
         }
       }
 
-      // Record the download in user's history
-      await storage.recordWorkflowDownload(userId, workflowId);
+      try {
+        // Record the download in user's history
+        await storage.recordWorkflowDownload(userId, workflowId);
+        
+        // Record download analytics
+        await storage.incrementTotalDownloads(workflowId);
+      } catch (analyticsError) {
+        console.error('Error recording download analytics:', analyticsError);
+        // Continue with download attempt even if analytics recording fails
+      }
 
       // Send the file
-      const filePath = fileStorage.getAbsolutePath(workflow.filePath);
-      res.download(filePath);
+      try {
+        const filePath = fileStorage.getAbsolutePath(workflow.filePath);
+        res.download(filePath);
+      } catch (fileError) {
+        console.error('Error finding workflow file:', fileError);
+        res.status(404).json({ 
+          message: "Workflow file not found", 
+          details: "The workflow was found in the database, but the file is missing. The download has still been recorded."
+        });
+      }
     } catch (error) {
       console.error('Error downloading file:', error);
-      res.status(404).json({ message: "Workflow file not found" });
+      res.status(500).json({ 
+        message: "Error processing download request",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
