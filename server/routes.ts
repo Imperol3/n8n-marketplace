@@ -1014,6 +1014,38 @@ app.post("/api/v1/users", async (req, res) => {
     }
   });
 
+  // Update workflow description (Admin only)
+  app.patch("/api/workflows/:id/description", isAdmin, async (req, res) => {
+    try {
+      const workflowId = parseInt(req.params.id);
+      const { description } = req.body;
+      
+      if (description === undefined) {
+        return res.status(400).json({ message: "Description is required" });
+      }
+      
+      const workflow = await storage.getWorkflow(workflowId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      const updatedWorkflow = await storage.updateWorkflow(workflowId, { description });
+      
+      res.json({
+        success: true,
+        workflow: updatedWorkflow,
+        message: "Description updated successfully"
+      });
+    } catch (error) {
+      console.error('Error updating workflow description:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Error updating workflow description",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

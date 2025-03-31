@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { FormattedContent } from "@/components/formatted-content";
+import { EditableContent } from "@/components/editable-content";
 import { 
   Download, 
   ExternalLink, 
@@ -287,11 +288,27 @@ export default function WorkflowDetailsPage() {
                     )}
                   </div>
                   
-                  {formattedDescription ? (
-                    <FormattedContent content={formattedDescription} />
-                  ) : (
-                    <p className="whitespace-pre-wrap">{workflow.description}</p>
-                  )}
+                  <EditableContent 
+                    content={formattedDescription || workflow.description}
+                    readOnly={!user || user.role !== 'admin'}
+                    onSave={async (newContent) => {
+                      const res = await apiRequest("PATCH", `/api/workflows/${workflow.id}/description`, {
+                        description: newContent
+                      });
+                      
+                      if (!res.ok) {
+                        const error = await res.json();
+                        throw new Error(error.message || "Failed to update description");
+                      }
+                      
+                      // Update the workflow description locally
+                      workflow.description = newContent;
+                      // Clear any formatted version
+                      setFormattedDescription(newContent);
+                      
+                      return;
+                    }}
+                  />
                 </div>
 
                 {/* Additional Images */}
