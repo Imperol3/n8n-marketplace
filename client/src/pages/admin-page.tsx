@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, FileJson, Edit, Image, Trash, Eye, EyeOff, Copy } from "lucide-react";
+import { Plus, FileJson, Edit, Image, Trash, Eye, EyeOff, Copy, FileText, RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -45,6 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tier } from "@shared/schema";
+import { ContentConversionTool } from "@/components/content-conversion-tool";
 
 const workflowSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -1479,6 +1480,13 @@ export default function AdminPage() {
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             <AnalyticsCard />
+          </div>
+          
+          <div className="mt-8 border-t pt-6">
+            <h3 className="text-xl font-bold mb-4">Admin Tools</h3>
+            <div className="grid gap-6 md:grid-cols-2">
+              <ContentConversionTool />
+            </div>
           </div>
         </TabsContent>
       </Tabs>

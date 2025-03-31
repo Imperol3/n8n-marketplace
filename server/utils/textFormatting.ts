@@ -4,8 +4,26 @@
  * @returns Boolean indicating if markdown formatting is detected
  */
 export function containsMarkdown(text: string): boolean {
-  // Check for common markdown indicators
-  return /[*#\[\]_`~]/.test(text);
+  // Check for common markdown patterns
+  const markdownPatterns = [
+    /^#+\s+/m,                  // Headers
+    /\*\*.*?\*\*/,              // Bold
+    /\*.*?\*/,                  // Italic
+    /\[.*?\]\(.*?\)/,           // Links
+    /^>.*$/m,                   // Blockquotes
+    /^-\s+/m,                   // Unordered lists
+    /^[0-9]+\.\s+/m,            // Ordered lists
+    /^```[\s\S]*?```/m,         // Code blocks
+    /`.*?`/,                    // Inline code
+    /!\[.*?\]\(.*?\)/,          // Images
+    /^---$/m,                   // Horizontal rules
+    /==.*?==/,                  // Highlighting
+    /~~.*?~~/,                  // Strikethrough
+    /^\|.*\|$/m,                // Tables
+    /^#\s+.*$/m,                // Single header
+  ];
+
+  return markdownPatterns.some(pattern => pattern.test(text));
 }
 
 /**
@@ -16,21 +34,15 @@ export function containsMarkdown(text: string): boolean {
 export function formatTextToHtml(content: string): string {
   if (!content) return '';
   
-  // Check if content contains markdown
-  if (containsMarkdown(content)) {
-    try {
-      // In a production app, we'd use a library like marked
-      // Here we'll do simple conversion for demonstration
-      return convertMarkdownToHtml(content);
-    } catch (error) {
-      console.error('Error converting markdown to HTML:', error);
-      // Fallback to basic formatting
-      return formatPlainTextToHtml(content);
-    }
-  }
+  // Determine if the content is markdown
+  const isMarkdown = containsMarkdown(content);
   
-  // Format as regular text
-  return formatPlainTextToHtml(content);
+  // Format accordingly
+  if (isMarkdown) {
+    return convertMarkdownToHtml(content);
+  } else {
+    return formatPlainTextToHtml(content);
+  }
 }
 
 /**
@@ -38,24 +50,31 @@ export function formatTextToHtml(content: string): string {
  * In a real app, use a library like marked
  */
 function convertMarkdownToHtml(markdown: string): string {
-  // Convert headings (# Heading)
-  let html = markdown.replace(/^(#{1,6})\s+(.+)$/gm, (_, hashtags, text) => {
-    const level = hashtags.length;
-    return `<h${level}>${text}</h${level}>`;
-  });
+  let html = markdown;
   
-  // Convert bold (**bold**)
+  // Headers
+  html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+  
+  // Bold
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   
-  // Convert italic (*italic*)
+  // Italic
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
   
-  // Convert paragraphs
-  html = html.split('\n\n').map(para => {
-    // Skip if it's already a heading
-    if (para.startsWith('<h')) return para;
-    return `<p>${para.replace(/\n/g, '<br>')}</p>`;
-  }).join('');
+  // Line breaks
+  html = html.replace(/\n/g, '<br>');
+  
+  // Links
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+  
+  // Lists - very basic handling
+  html = html.replace(/^\s*-\s+(.*$)/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+  
+  // Code
+  html = html.replace(/`(.*?)`/g, '<code>$1</code>');
   
   return html;
 }
@@ -66,9 +85,15 @@ function convertMarkdownToHtml(markdown: string): string {
  * @returns HTML formatted version of the text
  */
 function formatPlainTextToHtml(text: string): string {
-  return text
-    .split('\n\n')
-    .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+  // Break into paragraphs
+  const paragraphs = text.split(/\n\n+/);
+  
+  // Format each paragraph
+  return paragraphs
+    .map(para => {
+      if (!para.trim()) return '';
+      return `<p>${para.replace(/\n/g, '<br>')}</p>`;
+    })
     .join('');
 }
 
@@ -80,13 +105,13 @@ function formatPlainTextToHtml(text: string): string {
  */
 export function formatTextForApi(text: string): { 
   html: string; 
-  plainText: string;
+  text: string;
   isMarkdown: boolean;
 } {
   const isMarkdown = containsMarkdown(text);
   return {
     html: formatTextToHtml(text),
-    plainText: text,
+    text: text,
     isMarkdown
   };
 }

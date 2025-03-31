@@ -853,6 +853,30 @@ app.post("/api/v1/users", async (req, res) => {
     }
   });
   
+  // Content formatting and conversion tools (admin only)
+  app.post("/api/tools/convert-to-markdown", isAdmin, async (_req, res) => {
+    try {
+      // Import the conversion tool
+      const { convertExistingContentToMarkdown } = await import('./utils/convertExistingContent');
+      
+      // Run the conversion
+      const result = await convertExistingContentToMarkdown();
+      
+      res.json({ 
+        success: true,
+        message: `Conversion completed. Enhanced ${result.converted} out of ${result.total} documents.`,
+        ...result
+      });
+    } catch (error) {
+      console.error('Error converting content:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to convert content to markdown",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Track user activity endpoint
   app.post("/api/track/pageview", async (req, res) => {
     try {
