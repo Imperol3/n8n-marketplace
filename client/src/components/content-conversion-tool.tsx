@@ -11,6 +11,8 @@ export function ContentConversionTool() {
   const [lastResult, setLastResult] = useState<{
     total: number;
     converted: number;
+    documentations?: number;
+    descriptions?: number;
     message: string;
     timestamp: string;
   } | null>(null);
@@ -30,6 +32,8 @@ export function ContentConversionTool() {
       setLastResult({
         total: data.total,
         converted: data.converted,
+        documentations: data.documentations,
+        descriptions: data.descriptions,
         message: data.message,
         timestamp: new Date().toLocaleString()
       });
@@ -56,14 +60,14 @@ export function ContentConversionTool() {
           Content Formatting Tool
         </CardTitle>
         <CardDescription>
-          Convert plain text documentation to proper markdown formatting for better readability
+          Convert plain text to proper markdown formatting for better readability
         </CardDescription>
       </CardHeader>
       
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          This tool scans workflow documentation for plain text content and enhances it with proper markdown formatting
-          for better readability. It detects headers, lists, bold text, and other formatting elements.
+          This tool scans workflow documentation and descriptions for plain text content and enhances them with proper markdown formatting
+          for better readability. It detects headers, lists, bold text, and other formatting elements to improve content presentation.
         </p>
         
         {lastResult && (
@@ -71,7 +75,32 @@ export function ContentConversionTool() {
             <AlertTitle>Last Conversion Result</AlertTitle>
             <AlertDescription>
               <p>{lastResult.message}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              
+              {lastResult.converted > 0 && (
+                <div className="mt-3 border-t pt-2">
+                  <h4 className="text-sm font-medium mb-1">Statistics:</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Total workflows:</span>
+                      <span className="ml-1 font-medium">{lastResult.total}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Contents converted:</span>
+                      <span className="ml-1 font-medium">{lastResult.converted}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Documentations:</span>
+                      <span className="ml-1 font-medium">{lastResult.documentations || 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Descriptions:</span>
+                      <span className="ml-1 font-medium">{lastResult.descriptions || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-xs text-muted-foreground mt-2">
                 Run at {lastResult.timestamp}
               </p>
             </AlertDescription>

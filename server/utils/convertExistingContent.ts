@@ -1,60 +1,87 @@
 import { db } from '../db';
 import { workflows } from '@shared/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, or, isNotNull, ne } from 'drizzle-orm';
 
 /**
  * Script to analyze and convert existing content to markdown format
- * This tool can be run to enhance the readability of existing documentation
+ * This tool can be run to enhance the readability of existing documentation and descriptions
  */
 export async function convertExistingContentToMarkdown() {
   console.log('Starting conversion of existing content to markdown format...');
   
-  // Get all workflows that have documentation
-  const workflowsWithDocs = await db.select()
+  // Get all workflows that have documentation or descriptions
+  const workflowsToProcess = await db.select()
     .from(workflows)
     .where(
-      sql`metadata->>'documentation' IS NOT NULL AND metadata->>'documentation' != ''`
+      or(
+        sql`metadata->>'documentation' IS NOT NULL AND metadata->>'documentation' != ''`,
+        sql`description IS NOT NULL AND description != ''`
+      )
     );
   
-  console.log(`Found ${workflowsWithDocs.length} workflows with documentation`);
+  console.log(`Found ${workflowsToProcess.length} workflows with content to process`);
   
-  let convertedCount = 0;
+  let convertedDocsCount = 0;
+  let convertedDescCount = 0;
   
   // Process each workflow
-  for (const workflow of workflowsWithDocs) {
-    const documentation = workflow.metadata?.documentation;
+  for (const workflow of workflowsToProcess) {
+    let needsUpdate = false;
+    const updates: any = {};
     
-    if (!documentation) continue;
-    
-    // Skip if it already has markdown formatting
-    if (hasMarkdownFormatting(documentation)) {
-      console.log(`Workflow #${workflow.id} already has markdown formatting. Skipping.`);
-      continue;
-    }
-    
-    // Convert to markdown
-    const enhancedDocumentation = convertToMarkdown(documentation);
-    
-    // Update the workflow with enhanced documentation
-    if (enhancedDocumentation !== documentation) {
-      await db.update(workflows)
-        .set({
-          metadata: {
+    // Process documentation if it exists
+    if (workflow.metadata?.documentation) {
+      const documentation = workflow.metadata.documentation;
+      
+      // Skip if it already has markdown formatting
+      if (!hasMarkdownFormatting(documentation)) {
+        const enhancedDocumentation = convertToMarkdown(documentation);
+        
+        // Update if there were changes
+        if (enhancedDocumentation !== documentation) {
+          updates.metadata = {
             ...workflow.metadata,
             documentation: enhancedDocumentation
-          }
-        })
+          };
+          needsUpdate = true;
+          convertedDocsCount++;
+          console.log(`Converted documentation for workflow #${workflow.id}`);
+        }
+      }
+    }
+    
+    // Process description if it exists
+    if (workflow.description) {
+      // Skip if it already has markdown formatting
+      if (!hasMarkdownFormatting(workflow.description)) {
+        const enhancedDescription = convertToMarkdown(workflow.description);
+        
+        // Update if there were changes
+        if (enhancedDescription !== workflow.description) {
+          updates.description = enhancedDescription;
+          needsUpdate = true;
+          convertedDescCount++;
+          console.log(`Converted description for workflow #${workflow.id}`);
+        }
+      }
+    }
+    
+    // Update the workflow if changes were made
+    if (needsUpdate) {
+      await db.update(workflows)
+        .set(updates)
         .where(eq(workflows.id, workflow.id));
-      
-      convertedCount++;
-      console.log(`Converted documentation for workflow #${workflow.id}`);
     }
   }
   
-  console.log(`Conversion complete. Enhanced ${convertedCount} documents.`);
+  const totalConverted = convertedDocsCount + convertedDescCount;
+  console.log(`Conversion complete. Enhanced ${convertedDocsCount} documentations and ${convertedDescCount} descriptions.`);
+  
   return {
-    total: workflowsWithDocs.length,
-    converted: convertedCount
+    total: workflowsToProcess.length,
+    converted: totalConverted,
+    documentations: convertedDocsCount,
+    descriptions: convertedDescCount
   };
 }
 

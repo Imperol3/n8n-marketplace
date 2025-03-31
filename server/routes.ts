@@ -862,9 +862,13 @@ app.post("/api/v1/users", async (req, res) => {
       // Run the conversion
       const result = await convertExistingContentToMarkdown();
       
+      // Create a detailed message
+      const docsText = result.documentations ? `${result.documentations} documentation${result.documentations !== 1 ? 's' : ''}` : '0 documentations';
+      const descText = result.descriptions ? `${result.descriptions} description${result.descriptions !== 1 ? 's' : ''}` : '0 descriptions';
+      
       res.json({ 
         success: true,
-        message: `Conversion completed. Enhanced ${result.converted} out of ${result.total} documents.`,
+        message: `Conversion completed. Enhanced ${docsText} and ${descText} out of ${result.total} workflows.`,
         ...result
       });
     } catch (error) {
