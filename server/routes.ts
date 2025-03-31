@@ -899,25 +899,24 @@ app.post("/api/v1/users", async (req, res) => {
       
       // Check if content already has markdown
       const { containsMarkdown } = await import('./utils/textFormatting');
-      const alreadyFormatted = containsMarkdown(content);
-      
-      if (alreadyFormatted) {
-        return res.json({
-          success: true,
-          formatted: content,
-          message: "Content already has markdown formatting",
-          wasConverted: false
-        });
-      }
+      const hasSubstantialFormatting = containsMarkdown(content);
       
       // Format the content
       const formattedContent = convertToMarkdown(content);
       
+      // Check if the content changed significantly
+      const significantChange = content.trim() !== formattedContent.trim() && 
+        Math.abs(formattedContent.length - content.length) > (content.length * 0.05); // 5% change threshold
+      
+      const wasConverted = !hasSubstantialFormatting || significantChange;
+      
       res.json({
         success: true,
         formatted: formattedContent,
-        message: "Content formatted successfully",
-        wasConverted: true
+        message: wasConverted 
+          ? "Content formatted successfully" 
+          : "Content already has markdown formatting",
+        wasConverted: wasConverted
       });
     } catch (error) {
       console.error('Error formatting content:', error);

@@ -1,9 +1,14 @@
 /**
- * Detects if a string contains markdown formatting
+ * Detects if a string contains substantial markdown formatting
  * @param text The text to check
- * @returns Boolean indicating if markdown formatting is detected
+ * @returns Boolean indicating if substantial markdown formatting is detected
  */
 export function containsMarkdown(text: string): boolean {
+  if (!text || text.trim().length < 5) return false;
+  
+  // First, count instances of markdown-like patterns
+  let markdownCount = 0;
+  
   // Check for common markdown patterns
   const markdownPatterns = [
     /^#+\s+/m,                  // Headers
@@ -20,10 +25,36 @@ export function containsMarkdown(text: string): boolean {
     /==.*?==/,                  // Highlighting
     /~~.*?~~/,                  // Strikethrough
     /^\|.*\|$/m,                // Tables
-    /^#\s+.*$/m,                // Single header
   ];
 
-  return markdownPatterns.some(pattern => pattern.test(text));
+  // Count total markdown elements
+  markdownPatterns.forEach(pattern => {
+    const matches = text.match(new RegExp(pattern, 'g'));
+    if (matches) {
+      markdownCount += matches.length;
+    }
+  });
+  
+  // Check if the text has substantial markdown formatting
+  // If there are multiple instances or if markdown makes up a significant portion
+  const textLength = text.length;
+  const paragraphs = text.split(/\n\n+/).length;
+  
+  // More flexible criteria - only consider it heavily formatted if:
+  // 1. Multiple header patterns are found (##, ###, etc.)
+  const headerMatches = text.match(/^#+\s+/gm);
+  const hasMultipleHeaders = headerMatches && headerMatches.length > 1;
+  
+  // 2. Or has many markdown elements relative to text size
+  const markdownDensity = markdownCount / (textLength / 100);
+  const hasHighMarkdownDensity = markdownDensity > 2; // 2% or more of text is markdown
+  
+  // 3. Or has combination of headers and other markdown elements
+  const hasHeaderAndOtherMarkdown = 
+    text.match(/^#+\s+/m) && 
+    markdownCount >= 3;
+    
+  return hasMultipleHeaders || hasHighMarkdownDensity || hasHeaderAndOtherMarkdown;
 }
 
 /**

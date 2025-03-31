@@ -98,16 +98,18 @@ export default function WorkflowDetailsPage() {
       return await res.json();
     },
     onSuccess: (data) => {
+      // Always update display, even if just slight formatting occurred
+      setFormattedDescription(data.formatted);
+      
       if (data.wasConverted) {
-        setFormattedDescription(data.formatted);
         toast({
           title: "Description Formatted",
           description: "The description has been enhanced with markdown formatting"
         });
       } else {
         toast({
-          title: "Already Formatted",
-          description: "The description already has proper formatting"
+          title: "Already Well Formatted",
+          description: "Minor adjustments applied, but content was already well-structured"
         });
       }
     },
