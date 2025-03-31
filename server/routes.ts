@@ -781,7 +781,17 @@ app.post("/api/v1/users", async (req, res) => {
         return res.status(404).json({ message: "Documentation not found for this workflow" });
       }
       
-      res.json({ documentation });
+      // Import the text formatting utility
+      const { formatTextForApi } = await import('./utils/textFormatting');
+      
+      // Format the documentation for the response
+      const formattedDocumentation = formatTextForApi(documentation);
+      
+      res.json({ 
+        documentation, 
+        formattedHtml: formattedDocumentation.html,
+        isMarkdown: formattedDocumentation.isMarkdown
+      });
     } catch (error) {
       console.error('Error fetching documentation:', error);
       res.status(500).json({ 

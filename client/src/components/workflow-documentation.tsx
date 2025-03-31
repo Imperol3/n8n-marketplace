@@ -3,11 +3,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FileEdit, Save, AlertTriangle, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormattedContent } from "./formatted-content";
 
 interface WorkflowDocumentationProps {
   workflowId: number;
@@ -185,9 +185,10 @@ export default function WorkflowDocumentation({ workflowId }: WorkflowDocumentat
           </Button>
         )}
       </div>
-      <div className="prose prose-slate max-w-none">
-        <ReactMarkdown>{data?.documentation || ""}</ReactMarkdown>
-      </div>
+      <FormattedContent 
+        content={data?.documentation || ""} 
+        className="prose prose-slate dark:prose-invert max-w-none"
+      />
     </div>
   );
 }
