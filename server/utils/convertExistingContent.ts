@@ -95,8 +95,10 @@ function hasMarkdownFormatting(text: string): boolean {
 
 /**
  * Convert plain text to enhanced markdown
+ * @param text The text to convert to markdown
+ * @returns Text with markdown formatting applied
  */
-function convertToMarkdown(text: string): string {
+export function convertToMarkdown(text: string): string {
   // Split by paragraphs
   const paragraphs = text.split(/\n\n+/);
   
@@ -146,17 +148,4 @@ function convertToMarkdown(text: string): string {
   return enhancedParagraphs.join('\n\n');
 }
 
-/**
- * Script entry point when run directly
- */
-if (require.main === module) {
-  convertExistingContentToMarkdown()
-    .then(() => {
-      console.log('Content conversion completed successfully');
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error('Error during content conversion:', error);
-      process.exit(1);
-    });
-}
+// Remove the direct execution section as it's not compatible with ES modules

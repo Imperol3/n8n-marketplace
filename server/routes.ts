@@ -853,7 +853,9 @@ app.post("/api/v1/users", async (req, res) => {
     }
   });
   
-  // Content formatting and conversion tools (admin only)
+  // Content formatting and conversion tools
+  
+  // Bulk convert all content to markdown (admin only)
   app.post("/api/tools/convert-to-markdown", isAdmin, async (_req, res) => {
     try {
       // Import the conversion tool
@@ -876,6 +878,52 @@ app.post("/api/v1/users", async (req, res) => {
       res.status(500).json({ 
         success: false,
         message: "Failed to convert content to markdown",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Format a single piece of content (available to all authenticated users)
+  app.post("/api/tools/format-content", async (req, res) => {
+    try {
+      const { content } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Content is required" 
+        });
+      }
+      
+      const { convertToMarkdown } = await import('./utils/convertExistingContent');
+      
+      // Check if content already has markdown
+      const { containsMarkdown } = await import('./utils/textFormatting');
+      const alreadyFormatted = containsMarkdown(content);
+      
+      if (alreadyFormatted) {
+        return res.json({
+          success: true,
+          formatted: content,
+          message: "Content already has markdown formatting",
+          wasConverted: false
+        });
+      }
+      
+      // Format the content
+      const formattedContent = convertToMarkdown(content);
+      
+      res.json({
+        success: true,
+        formatted: formattedContent,
+        message: "Content formatted successfully",
+        wasConverted: true
+      });
+    } catch (error) {
+      console.error('Error formatting content:', error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to format content",
         error: error instanceof Error ? error.message : String(error)
       });
     }

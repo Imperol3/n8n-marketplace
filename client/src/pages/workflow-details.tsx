@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { FormattedContent } from "@/components/formatted-content";
 import { 
   Download, 
   ExternalLink, 
@@ -14,7 +15,9 @@ import {
   Star, 
   StarOff, 
   FileText,
-  MessageCircle
+  MessageCircle,
+  Brush,
+  RefreshCw
 } from "lucide-react";
 import WorkflowDocumentation from "@/components/workflow-documentation";
 import WorkflowRatings from "@/components/workflow-ratings";
@@ -27,6 +30,8 @@ export default function WorkflowDetailsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
+  const [formattedDescription, setFormattedDescription] = useState<string | null>(null);
+  const [isFormattingDescription, setIsFormattingDescription] = useState(false);
   const numericId = parseInt(id);
   
   const { data: workflow, isLoading } = useQuery<Workflow>({
@@ -84,6 +89,44 @@ export default function WorkflowDetailsPage() {
     }
   });
 
+  // Format description mutation
+  const formatDescriptionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/tools/format-content", { 
+        content: workflow?.description || "" 
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      if (data.wasConverted) {
+        setFormattedDescription(data.formatted);
+        toast({
+          title: "Description Formatted",
+          description: "The description has been enhanced with markdown formatting"
+        });
+      } else {
+        toast({
+          title: "Already Formatted",
+          description: "The description already has proper formatting"
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to format description",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Format the description
+  const formatDescription = () => {
+    if (!workflow?.description) return;
+    setIsFormattingDescription(true);
+    formatDescriptionMutation.mutate();
+  };
+  
   // Toggle favorite status
   const toggleFavorite = () => {
     if (isFavorite) {
@@ -217,8 +260,36 @@ export default function WorkflowDetailsPage() {
               <TabsContent value="overview" className="space-y-6">
                 {/* Description */}
                 <div className="prose prose-lg max-w-none">
-                  <h2 className="text-2xl font-semibold mb-4">Description</h2>
-                  <p className="whitespace-pre-wrap">{workflow.description}</p>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-semibold m-0">Description</h2>
+                    {user && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={formatDescription}
+                        disabled={formatDescriptionMutation.isPending || isFormattingDescription}
+                        className="flex gap-2 items-center"
+                      >
+                        {formatDescriptionMutation.isPending ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <span>Formatting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Brush className="h-4 w-4" />
+                            <span>Format Description</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {formattedDescription ? (
+                    <FormattedContent content={formattedDescription} />
+                  ) : (
+                    <p className="whitespace-pre-wrap">{workflow.description}</p>
+                  )}
                 </div>
 
                 {/* Additional Images */}
