@@ -184,7 +184,12 @@ export default function HomePage() {
         <header className="border-b">
           <div className="container mx-auto px-6 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold">Fun Automations Workflows</h1>
-            <Skeleton className="h-10 w-24" />
+            <div className="flex items-center gap-4">
+              <Link href="/api-docs">
+                <Button variant="outline">API Docs</Button>
+              </Link>
+              <Skeleton className="h-10 w-24" />
+            </div>
           </div>
         </header>
 
@@ -225,15 +230,25 @@ export default function HomePage() {
       <div className="min-h-screen bg-background">
         <header className="border-b">
           <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Workflow Marketplace</h1>
+            <h1 className="text-2xl font-bold">Fun Automations Workflows</h1>
             {user ? (
-              <Button variant="outline" onClick={() => logoutMutation.mutate()}>
-                Logout
-              </Button>
+              <div className="flex items-center gap-4">
+                <Link href="/api-docs">
+                  <Button variant="outline">API Docs</Button>
+                </Link>
+                <Button variant="outline" onClick={() => logoutMutation.mutate()}>
+                  Logout
+                </Button>
+              </div>
             ) : (
-              <Link href="/auth">
-                <Button variant="outline">Sign in</Button>
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link href="/api-docs">
+                  <Button variant="outline">API Docs</Button>
+                </Link>
+                <Link href="/auth">
+                  <Button variant="outline">Sign in</Button>
+                </Link>
+              </div>
             )}
           </div>
         </header>
@@ -257,12 +272,17 @@ export default function HomePage() {
       <header className="border-b">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            Workflow Marketplace
+            Fun Automations Workflows
           </h1>
           {!user ? (
-            <Link href="/auth">
-              <Button variant="outline">Sign in</Button>
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/api-docs">
+                <Button variant="outline">API Docs</Button>
+              </Link>
+              <Link href="/auth">
+                <Button variant="outline">Sign in</Button>
+              </Link>
+            </div>
           ) : (
             <div className="flex items-center gap-4">
               {user.role === "admin" && (
@@ -272,6 +292,9 @@ export default function HomePage() {
               )}
               <Link href="/dashboard">
                 <Button variant="outline">My Dashboard</Button>
+              </Link>
+              <Link href="/api-docs">
+                <Button variant="outline">API Docs</Button>
               </Link>
               <Button variant="outline" onClick={() => logoutMutation.mutate()}>
                 Logout

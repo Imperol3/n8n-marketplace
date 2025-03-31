@@ -14,7 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 // Base schema for common fields
 const baseAuthSchema = z.object({
@@ -45,7 +52,7 @@ export default function AuthPage() {
       password: "",
       email: "",
     },
-    mode: "onChange"
+    mode: "onChange",
   });
 
   // Check if user is already logged in and redirect to home page
@@ -62,7 +69,7 @@ export default function AuthPage() {
       // For login, we only need username and password
       await loginMutation.mutateAsync({
         username: data.username,
-        password: data.password
+        password: data.password,
       });
     } else {
       // For registration, we need all fields
@@ -75,20 +82,26 @@ export default function AuthPage() {
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Welcome to Workflow Marketplace</CardTitle>
+            <CardTitle>Welcome to Fun Automations Workflows</CardTitle>
             <CardDescription>
               Sign in to access and download workflows
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")}>
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as "login" | "register")}
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
               </TabsList>
               <TabsContent value="login">
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-4"
+                  >
                     <FormField
                       control={form.control}
                       name="username"
@@ -127,7 +140,10 @@ export default function AuthPage() {
               </TabsContent>
               <TabsContent value="register">
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-4"
+                  >
                     <FormField
                       control={form.control}
                       name="username"
@@ -186,7 +202,8 @@ export default function AuthPage() {
             Discover Amazing n8n Workflows
           </h2>
           <p className="text-muted-foreground mb-8">
-            Browse through our curated collection of automation workflows. Register now to download and use them in your projects.
+            Browse through our curated collection of automation workflows.
+            Register now to download and use them in your projects.
           </p>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-card p-4 rounded-lg">
