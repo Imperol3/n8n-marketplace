@@ -1,0 +1,27 @@
+name: Import from n8n-marketplace
+
+on:
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v3
+
+      - name: Clone marketplace repo
+        run: |
+          git clone https://github.com/Imperol3/n8n-marketplace marketplace
+
+      - name: Copy needed files
+        run: |
+          cp -r marketplace/* .   # or target specific folders
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Synced files from n8n-marketplace" || echo "No changes to commit"
+          git push
